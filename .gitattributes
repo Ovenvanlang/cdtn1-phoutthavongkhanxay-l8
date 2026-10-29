@@ -1,0 +1,12 @@
+# Repo làm trên Windows (core.autocrlf=true) nhưng chạy cả trong container Linux:
+# các tệp do Docker / shell đọc luôn giữ xuống dòng kiểu LF để không vỡ khi build/compose.
+Dockerfile          text eol=lf
+docker-compose.yml  text eol=lf
+.dockerignore       text eol=lf
+.env.example        text eol=lf
+*.sh                text eol=lf
+*.sql               text eol=lf
+data/sample/*.csv   text eol=lf
+# Tệp nhị phân: không bao giờ đổi xuống dòng
+*.png               binary
+*.drawio            text

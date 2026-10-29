@@ -130,7 +130,7 @@ async function taiTrungTam() {
     for (const c of list) {
       const opt = document.createElement('option');
       opt.value = String(c.center_id);
-      opt.textContent = c.center_name;           // bản thiết kế chỉ ghi mã trung tâm (HCM-01)
+      opt.textContent = c.center_name;           // tên trung tâm theo case study (TTBH Quận 10…)
       opt.title = c.city;
       oTrungTam.append(opt);
     }

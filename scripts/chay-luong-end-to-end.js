@@ -48,7 +48,7 @@ async function main() {
   // ---------------------------------------------------------------- 1. Đăng nhập
   title('Đăng nhập 4 vai trò (POST /api/auth/login)');
   const tokens = {};
-  for (const username of ['hethong', 'quanly.hcm01', 'bgd', 'marketing']) {
+  for (const username of ['hethong', 'quanly.tt01', 'bgd', 'marketing']) {
     const r = await call('POST', '/api/auth/login', { body: { username, password: PASSWORD } });
     expect(r.status === 200 && r.json.data.token, `${username} đăng nhập -> 200, vai trò ${r.json.data?.user?.role}`);
     tokens[username] = r.json.data.token;
@@ -61,7 +61,7 @@ async function main() {
   // ---------------------------------------------------------------- 2. UC1
   title('UC1 – hệ thống tạo khảo sát cho một phiếu ĐÃ ĐÓNG chưa có khảo sát');
   // Chọn phiếu thuộc ĐÚNG trung tâm của tài khoản quản lý, để bước 6 kiểm chứng QT-14/QT-15 trên dữ liệu vừa tạo.
-  const centerQuanLy = db.prepare('SELECT center_id FROM app_user WHERE username = ?').get('quanly.hcm01').center_id;
+  const centerQuanLy = db.prepare('SELECT center_id FROM app_user WHERE username = ?').get('quanly.tt01').center_id;
   const timUngVien = db.prepare(`
     SELECT t.ticket_id, t.ticket_code, t.center_id FROM ticket t
      LEFT JOIN survey_response s ON s.ticket_id = t.ticket_id
@@ -132,7 +132,7 @@ async function main() {
 
   // ---------------------------------------------------------------- 6. UC6 + QT-14/QT-15
   title('UC6 – danh sách phản hồi điểm thấp và kiểm tra QT-14/QT-15 (quản lý trung tâm)');
-  const thap = await call('GET', '/api/reports/low-score?limit=5', { token: tokens['quanly.hcm01'] });
+  const thap = await call('GET', '/api/reports/low-score?limit=5', { token: tokens['quanly.tt01'] });
   show('OUTPUT', thap.json.data.map((r) => `${r.ticket_code} | ${r.center_name} | điểm ${r.score} | ${r.customer_phone}`));
   expect(thap.status === 200 && thap.json.data.every((r) => r.score <= 2),
     `BS-03: ${thap.json.data.length} dòng, mọi dòng đều có điểm <= 2`);
@@ -147,7 +147,7 @@ async function main() {
   expect(thap.json.data.every((r) => r.center_id === centerQuanLy), `QT-14: chỉ có dữ liệu trung tâm ${centerQuanLy}`);
   expect(thap.json.data.every((r) => r.customer_phone && !String(r.customer_phone).includes('*')),
     'QT-15: quản lý thấy số điện thoại đầy đủ (không che bằng dấu *)');
-  const xemTTKhac = await call('GET', '/api/reports/csat?center_id=999', { token: tokens['quanly.hcm01'] });
+  const xemTTKhac = await call('GET', '/api/reports/csat?center_id=999', { token: tokens['quanly.tt01'] });
   expect(xemTTKhac.status === 403 && xemTTKhac.json.error === 'KHONG_DU_QUYEN', 'QT-14: quản lý xem trung tâm khác -> 403');
   const mktLowScore = await call('GET', '/api/reports/low-score', { token: tokens.marketing });
   expect(mktLowScore.status === 403, 'Marketing xem danh sách phản hồi chi tiết -> 403');

@@ -46,7 +46,7 @@ export function renderThanhBen(el, { dangChon } = {}) {
   el.querySelector('[data-dang-xuat]').addEventListener('click', () => logout());
 }
 
-/** Ghi rõ phạm vi dữ liệu ở chân thanh bên khi đã biết tên trung tâm (ví dụ "Trung tâm HCM-01"). */
+/** Ghi rõ phạm vi dữ liệu ở chân thanh bên khi đã biết tên trung tâm (ví dụ "Trung tâm TTBH Quận 10"). */
 export function capNhatPhamVi(el, text) {
   const o = el.querySelector('[data-pham-vi]');
   if (o) o.textContent = text;

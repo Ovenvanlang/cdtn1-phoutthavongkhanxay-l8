@@ -1,0 +1,48 @@
+%% Sơ đồ kiến trúc ĐÃ HIỆN THỰC (BT2, tag v0.2) – mỗi khối ghi thư mục tương ứng trong repo.
+%% Nguồn: docs/architecture-thuc-te.mmd · Ảnh: docs/architecture-thuc-te.png (mmdc -i ... -o ...)
+flowchart TB
+  user["Người dùng – trình duyệt<br/>Khách hàng · Quản lý trung tâm · Ban giám đốc · Marketing"]
+
+  subgraph FE["Frontend – src/frontend/ (HTML/CSS/JS thuần + Chart.js cục bộ)"]
+    direction LR
+    pages["pages/<br/>khao-sat · bao-cao-csat · xu-huong · dang-nhap"]
+    comps["components/<br/>DataState (đang tải · rỗng · lỗi + Thử lại)<br/>bieu-do · dinh-dang · thanh-ben"]
+    api["api/<br/>client.mjs – NƠI DUY NHẤT gọi fetch<br/>token Bearer · 401 -> đăng nhập"]
+    pages --> comps
+    pages --> api
+  end
+
+  subgraph BE["Backend API – src/backend/ (Node.js 22 + Express 5)"]
+    direction TB
+    mw["middleware/<br/>access.js: đọc token, requireRole (QT-14, BS-05)<br/>error-handler.js: mã lỗi -> HTTP"]
+    routes["routes/<br/>auth · surveys · reports · centers · users"]
+    val["validators/<br/>định dạng & kiểu dữ liệu vào (kèm tên trường)"]
+    svc["services/<br/>survey (QT-10, QT-13) · report (BS-01..05, mốc so sánh)<br/>auth (token) · user (QT-13, QT-14, TK-01..03)"]
+    repo["repositories/<br/>survey · report · ticket · center · user – CHỈ SQL"]
+    err["errors/AppError.js<br/>mã nghiệp vụ, không mang mã HTTP"]
+    util["utils/password.js<br/>scrypt + muối"]
+    mw --> routes --> val
+    routes --> svc --> repo
+    svc -. ném .-> err
+    svc --> util
+  end
+
+  db[("SQLite – node:sqlite<br/>src/backend/db/connection.js<br/>survey_response · ticket · technician · customer<br/>service_center · dim_date · app_user")]
+  mig["migrations/ 001–004<br/>(migrate.js, chạy lại không lỗi)"]
+  seed["seeds/seed.js<br/>dữ liệu mô phỏng seed = 42"]
+  csv["data/sample/*.csv (mẫu bộ chính thức)<br/>data/raw/ (bộ đầy đủ, không commit)"]
+  imp["src/backend/db/import-csv.js"]
+
+  user -->|HTTP, cùng cổng 3000| FE
+  api -->|REST/JSON + Bearer token| mw
+  repo -->|SQL tham số hóa| db
+  mig --> db
+  seed --> db
+  csv --> imp --> db
+
+  classDef fe fill:#eef4fb,stroke:#4f7fc0,color:#1f2328
+  classDef be fill:#fff8e1,stroke:#e8b931,color:#1f2328
+  classDef data fill:#fdecec,stroke:#d62828,color:#1f2328
+  class pages,comps,api fe
+  class mw,routes,val,svc,repo,err,util be
+  class db,mig,seed,csv,imp data

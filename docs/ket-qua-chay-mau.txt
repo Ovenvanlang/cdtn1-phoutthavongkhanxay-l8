@@ -1,110 +1,224 @@
-KẾT QUẢ CHẠY LUỒNG END-TO-END – Buổi 10 (Sprint 2)
-Ngày chạy: 2026-10-23 16:15 UTC  ·  Node v22.22.0
+KẾT QUẢ CHẠY THẬT – BT2 (tag v0.2)
+Ngày chạy: 2026-10-29 14:22 UTC  ·  Node v22.23.4  ·  npm 10.9.9
+Mọi đoạn dưới đây là đầu ra NGUYÊN VĂN của lệnh ghi ở dòng $ (không chỉnh sửa).
 
-############ LẦN 1: dữ liệu mô phỏng tái lập (npm run db:setup, seed=42) ############
+############ 1. Bộ kiểm thử: $ npm test ############
+ok 1 - Băm mật khẩu: mỗi lần băm ra chuỗi khác nhau (có muối) nhưng đều kiểm tra đúng
+ok 2 - Đăng nhập đúng -> token mang đúng vai trò và trung tâm (QT-14)
+ok 3 - Ngoại lệ đăng nhập: sai mật khẩu / không có tài khoản / tài khoản đã khóa -> cùng một mã lỗi
+ok 4 - Token bị sửa chữ ký, sai định dạng hoặc đổi thuật toán đều bị từ chối (TOKEN_KHONG_HOP_LE)
+ok 5 - Biên hết hạn: còn 1 giây thì chấp nhận, qua đúng thời điểm hết hạn thì từ chối
+ok 6 - Tài khoản bị khóa SAU khi đăng nhập: token cũ bị từ chối ngay, không chờ hết hạn (QT-13, TD-21)
+ok 7 - DataState: đủ ba trạng thái đang tải / không có dữ liệu / lỗi
+ok 8 - DataState: trạng thái lỗi có nút "Thử lại" và bấm vào thì gọi lại hàm nạp dữ liệu
+ok 9 - DataState.load: tắt backend (API ném lỗi) -> hiện lỗi + Thử lại, bấm lại thì nạp được
+ok 10 - DataState.load: API trả rỗng -> trạng thái "không có dữ liệu", không phải lỗi
+ok 11 - DataState: hai kiểu rỗng – "chưa có dữ liệu" không có nút; "bộ lọc không ra kết quả" có nút Xóa bộ lọc
+ok 12 - Định dạng mốc so sánh: chênh lệch có dấu và mũi tên, thiếu số thì "—"
+ok 13 - DataState: nội dung do máy chủ trả về được thoát ký tự (chống XSS)
+ok 14 - Quy ước kiến trúc: không trang nào trong pages/ gọi fetch( trực tiếp
+ok 15 - Luồng đúng: đọc đúng cột của case study (ho_ten, thanh_pho, is_active=false) và nạp đủ dòng hợp lệ
+ok 16 - Dữ liệu sai bị bỏ qua kèm lý do đọc được: phiếu chưa đóng, khảo sát lần hai, điểm ngoài 1–5
+ok 17 - Chạy lại lần 2 trên cùng CSDL: không lỗi, không nhân đôi, tài khoản quản lý gắn trung tâm vẫn giữ
+ok 18 - QT-02 (biên): chuẩn hóa SĐT về 10 số bắt đầu bằng 0; sai độ dài -> null
+ok 19 - BS-01: CSAT% = số phản hồi 4–5 điểm / tổng phản hồi đã trả lời, làm tròn 1 chữ số
+ok 20 - BS-02 (biên): đúng 5 phản hồi -> không cảnh báo; 4 phản hồi -> MAU_CHUA_DU_TIN_CAY
+ok 21 - BS-02 (ngoại lệ): không có phản hồi -> csat_percent = null và CHUA_CO_PHAN_HOI, tuyệt đối không phải 0%
+ok 22 - Khoảng thời gian: mặc định từ đầu năm đến hôm nay; from > to (kể cả khi một đầu lấy mặc định) -> lỗi dữ liệu
+ok 23 - QT-14: quản lý bị ép theo trung tâm mình, xin trung tâm khác -> 403
+ok 24 - BS-05: Marketing chỉ xem tổng hợp – không có bảng kỹ thuật viên, không lọc theo trung tâm
+ok 25 - UC4: bảng kỹ thuật viên xếp theo CSAT giảm dần và gắn cảnh báo mẫu nhỏ cho từng người
+ok 26 - UC5: xu hướng chỉ trả các kỳ CÓ phản hồi (không nội suy); mặc định năm hiện tại
+ok 27 - UC6: danh sách điểm thấp luôn ép status=DA_TRA_LOI và score_max=2 (BS-03)
+ok 28 - Mốc so sánh: kỳ trước cùng độ dài liền trước; chênh lệch CSAT tính theo điểm phần trăm
+ok 29 - Mốc so sánh (biên): kỳ trước không có phản hồi -> csat_delta = null, không bịa ra 0
+ok 30 - Mốc toàn hệ thống: BGĐ lọc một trung tâm thì có; quản lý trung tâm thì KHÔNG (QT-14)
+ok 31 - Tái lập: hai lần sinh với seed = 42 cho ra đúng cùng phiếu và phản hồi
+ok 32 - Chạy lại khi đã có dữ liệu: bỏ qua, không nhân đôi
+ok 33 - Bám case study: 6 trung tâm đúng tên, 38 KTV, mã phiếu BH-000123/2026, khảo sát chỉ cho phiếu ĐÃ ĐÓNG
+ok 34 - UC1: hệ thống tạo khảo sát cho phiếu ĐÃ ĐÓNG -> 201, trạng thái DA_GUI, chưa có điểm
+ok 35 - QT-10: tạo khảo sát lần 2 cho cùng một phiếu -> 409 DA_KHAO_SAT
+ok 36 - QT-10: phiếu chưa ĐÃ ĐÓNG -> 409 PHIEU_CHUA_DONG
+ok 37 - Phiếu không tồn tại -> 404; ticket_id sai kiểu -> 400
+ok 38 - Chưa đăng nhập không được tạo khảo sát -> 401; sai vai trò -> 403
+ok 39 - UC2: điểm ngoài 1–5 hoặc sai kiểu -> 400 và khảo sát vẫn ở DA_GUI
+ok 40 - Dữ liệu sai (thiếu trường bắt buộc): gửi phản hồi không có score -> 400 kèm tên trường, không sập
+ok 41 - UC2: nhận xét quá 500 ký tự -> 400
+ok 42 - UC2: gửi điểm hợp lệ -> 200, DA_TRA_LOI, low_score đúng theo BS-03
+ok 43 - QT-10: gửi phản hồi lần 2 -> 409 và điểm cũ KHÔNG bị ghi đè
+ok 44 - NFR4: CSDL tự chặn khảo sát trùng và điểm sai kể cả khi bỏ qua tầng service
+ok 45 - CSDL chặn tài khoản quản lý không gắn trung tâm (QT-14 ở mức ràng buộc dữ liệu)
+ok 46 - Ngày trả lời được ghi vào dim_date (khóa ngoại) kể cả ngoài khoảng seed
+ok 47 - QT-14: quản lý chỉ thấy trung tâm mình; xin trung tâm khác -> 403; chưa đăng nhập -> 401
+ok 48 - QT-15: quản lý và ban giám đốc đều thấy số điện thoại đầy đủ của khách
+ok 49 - Lọc điểm thấp score_max=2 chỉ trả phản hồi đã trả lời có điểm ≤ 2
+ok 50 - QT-13: xóa mềm -> đọc lại 404 nhưng bản ghi vẫn còn; quản lý trung tâm khác không xóa được
+ok 51 - UC3: báo cáo CSAT đã hiện thực -> 200 và tính đúng theo BS-01 trên dữ liệu test
+ok 52 - JSON hỏng -> 400 thay vì 500
+ok 53 - Đua tạo khảo sát: kiểm tra ở service bị vượt qua nhưng UNIQUE ở CSDL vẫn chặn -> 409 DA_KHAO_SAT
+ok 54 - Đua gửi phản hồi: yêu cầu đến sau khi dòng đã chuyển DA_TRA_LOI -> 409 và điểm đầu tiên được giữ
+ok 55 - CRUD đầy đủ bởi BGĐ: tạo 201 -> đọc 200 -> sửa 200 -> xóa mềm 200 -> không đăng nhập được nữa
+ok 56 - Phân quyền: quản lý trung tâm gọi API tài khoản -> 403; chưa đăng nhập -> 401
+ok 57 - Dữ liệu sai -> 400 kèm tên trường; trùng tên -> 409; BGĐ tự khóa mình -> 409
+ok 58 - Luồng đúng: tạo quản lý gắn trung tâm -> đọc lại được, mật khẩu chỉ lưu dạng băm
+ok 59 - QT-14: quản lý thiếu trung tâm hoặc trung tâm không tồn tại -> lỗi; vai trò khác không được gắn trung tâm
+ok 60 - TK-01: trùng tên đăng nhập -> TEN_DANG_NHAP_DA_TON_TAI
+ok 61 - Cập nhật: đổi quản lý sang marketing mà không gửi center_id -> tự bỏ trung tâm (QT-14)
+ok 62 - QT-13: xóa = khóa tài khoản, dòng dữ liệu vẫn còn; mở khóa lại được
+ok 63 - TK-02 và TK-03 (biên): không tự khóa mình; không khóa/hạ quyền BGĐ cuối cùng, còn BGĐ thứ hai thì được
+ok 64 - Không có tài khoản -> KHONG_TIM_THAY
+ok 65 - Luồng đúng: thân yêu cầu hợp lệ được chuẩn hóa (cắt khoảng trắng, chuỗi số -> số)
+ok 66 - Giá trị biên: điểm 1 và 5 nhận, 0 và 6 từ chối; nhận xét đúng 500 ký tự nhận, 501 từ chối
+ok 67 - Giá trị biên: limit 100 nhận, 101 từ chối; from = to (một ngày) nhận
+ok 68 - Dữ liệu sai: thiếu trường bắt buộc / sai kiểu -> lỗi rõ ràng kèm tên trường
+ok 69 - Dữ liệu sai: ngày không có thật, sai định dạng, from > to; năm và chu kỳ ngoài tập cho phép
+# tests 69
+# pass 69
+# fail 0
 
+############ 2. Dựng CSDL từ trống: $ npm run db:setup ############
+Đã chạy migration: 001_schema.sql, 002_indexes.sql, 003_users.sql, 004_customer_phone.sql
+Bảng hiện có: app_user, customer, dim_date, schema_migrations, service_center, survey_response, technician, ticket
+Đã nạp dữ liệu mẫu (seed=42): 1200 phiếu, đã đóng=977, khảo sát đã gửi=813, đã trả lời=369
+  service_center   6 dòng
+  technician       38 dòng
+  customer         300 dòng
+  ticket           1200 dòng
+  dim_date         1096 dòng
+  survey_response  813 dòng
+Đã tạo 4 tài khoản demo: hethong (he_thong), quanly.tt01 (quan_ly), bgd (bgd), marketing (marketing) – mật khẩu lấy từ DEMO_PASSWORD trong .env
 
+############ 3. Chạy lại lần 2 (C5 – không lỗi, không nhân đôi): $ npm run db:setup ############
+CSDL đã ở phiên bản mới nhất.
+Bảng hiện có: app_user, customer, dim_date, schema_migrations, service_center, survey_response, technician, ticket
+Đã có dữ liệu, bỏ qua. Dùng "npm run seed -- --reset" để nạp lại.
+Tài khoản demo: đã có, bỏ qua.
 
+############ 4. Chạy trọn luồng trên dữ liệu mô phỏng: $ npm run chay-luong ############
 ===== BƯỚC 1. Đăng nhập 4 vai trò (POST /api/auth/login)
   ✓ hethong đăng nhập -> 200, vai trò he_thong
-  ✓ quanly.hcm01 đăng nhập -> 200, vai trò quan_ly
+  ✓ quanly.tt01 đăng nhập -> 200, vai trò quan_ly
   ✓ bgd đăng nhập -> 200, vai trò bgd
   ✓ marketing đăng nhập -> 200, vai trò marketing
   ✓ Mật khẩu sai -> 401 SAI_TAI_KHOAN_HOAC_MAT_KHAU
   ✓ Gọi báo cáo khi chưa đăng nhập -> 401 CHUA_DANG_NHAP
-
 ===== BƯỚC 2. UC1 – hệ thống tạo khảo sát cho một phiếu ĐÃ ĐÓNG chưa có khảo sát
-  ✓ Tìm được phiếu ĐÃ ĐÓNG chưa khảo sát: BH000052/2026 (trung tâm 1)
-  INPUT: {"ticket_id":52}
-  OUTPUT: {"response_id":72,"ticket_id":52,"ticket_code":"BH000052/2026","center_id":1,"center_name":"HCM-01","closed_at":"2026-06-26T08:24:21.841Z","status":"DA_GUI","sent_at":"2026-10-23T16:15:44.240Z","score":null,"comment":null,"responded_at":null,"low_score":false}
+  ✓ Tìm được phiếu ĐÃ ĐÓNG chưa khảo sát: BH-000008/2025 (trung tâm 1)
+  INPUT: {"ticket_id":8}
+  OUTPUT: {"response_id":814,"ticket_id":8,"ticket_code":"BH-000008/2025","center_id":1,"center_name":"TTBH Quận 10","closed_at":"2025-01-05T09:46:00.000Z","status":"DA_GUI","sent_at":"2026-10-29T14:22:45.009Z","score":null,"comment":null,"responded_at":null,"low_score":false}
   ✓ Tạo khảo sát -> 201, trạng thái DA_GUI
   ✓ QT-10: tạo lần hai -> 409 DA_KHAO_SAT
-
 ===== BƯỚC 3. UC2 – khách hàng mở liên kết và gửi điểm (không cần đăng nhập)
   ✓ Form công khai không chứa thông tin khách hàng
   INPUT: {"score":2,"comment":"Sửa lâu, hẹn hai lần mới xong"}
-  OUTPUT: {"response_id":72,"ticket_id":52,"ticket_code":"BH000052/2026","center_id":1,"center_name":"HCM-01","closed_at":"2026-06-26T08:24:21.841Z","status":"DA_TRA_LOI","sent_at":"2026-10-23T16:15:44.240Z","score":2,"comment":"Sửa lâu, hẹn hai lần mới xong","responded_at":"2026-10-23T16:15:44.252Z","low_score":true}
+  OUTPUT: {"response_id":814,"ticket_id":8,"ticket_code":"BH-000008/2025","center_id":1,"center_name":"TTBH Quận 10","closed_at":"2025-01-05T09:46:00.000Z","status":"DA_TRA_LOI","sent_at":"2026-10-29T14:22:45.009Z","score":2,"comment":"Sửa lâu, hẹn hai lần mới xong","responded_at":"2026-10-29T14:22:45.020Z","low_score":true}
   ✓ Gửi phản hồi -> 200, DA_TRA_LOI, BS-03 đánh dấu điểm thấp
   ✓ QT-10: gửi lần hai -> 409 DA_KHAO_SAT
   ✓ Điểm 6 (ngoài 1–5) -> 400 DU_LIEU_KHONG_HOP_LE
-
 ===== BƯỚC 4. UC3/UC4 – báo cáo CSAT toàn hệ thống và theo kỹ thuật viên (ban giám đốc)
   INPUT: from=2026-01-01&to=2026-12-31
-  OUTPUT: {"total_responses":30,"csat_percent":90,"avg_score":4.43,"low_score_count":3,"distribution":{"1":2,"2":1,"3":0,"4":6,"5":21},"warning":null}
-  ✓ BS-01: CSAT% = 27/30 = 90%
-  Top KTV: ["Trần Thị Minh: 100% (3 phản hồi)","Bùi Minh Dũng: 100% (2 phản hồi)","Ngô Quốc Hải: 100% (2 phản hồi)"]
-  ✓ UC4: có bảng theo kỹ thuật viên (20 người)
-  ✓ BS-02: kỹ thuật viên có dưới 5 phản hồi được gắn cảnh báo MAU_CHUA_DU_TIN_CAY
-
+  OUTPUT: {"total_responses":174,"csat_percent":69,"avg_score":3.84,"low_score_count":33,"distribution":{"1":13,"2":20,"3":21,"4":47,"5":73},"warning":null}
+  ✓ BS-01: CSAT% = 120/174 = 69%
+  Top KTV: ["Nguyễn Văn Nam: 100% (6 phản hồi)","Vũ Bảo Linh: 100% (5 phản hồi)","Đặng Tuấn Hà: 100% (5 phản hồi)"]
+  ✓ UC4: có bảng theo kỹ thuật viên (36 người)
+  ✓ BS-02: đúng những kỹ thuật viên có dưới 5 phản hồi bị gắn cảnh báo MAU_CHUA_DU_TIN_CAY
+  Mốc so sánh: {"ky_truoc":"2025-01-01..2025-12-31","csat_ky_truoc":70.9,"chenh_lech":-1.9}
+  ✓ Mốc so sánh: kỳ trước của cả năm 2026 là cả năm 2025 (cùng số ngày, liền trước)
+  ✓ BGĐ lọc một trung tâm -> có thêm mốc "toàn hệ thống" bằng đúng CSAT toàn hệ thống
 ===== BƯỚC 5. UC5 – xu hướng CSAT theo quý (Marketing, chỉ số liệu tổng hợp)
-  OUTPUT: ["Q1/2026: 100% (6 phản hồi)","Q2/2026: 87.5% (8 phản hồi)","Q3/2026: 92.3% (13 phản hồi)","Q4/2026: 66.7% (3 phản hồi)"]
+  OUTPUT: ["Q1/2026: 73.2% (56 phản hồi)","Q2/2026: 76.4% (55 phản hồi)","Q3/2026: 57.4% (47 phản hồi)","Q4/2026: 62.5% (16 phản hồi)"]
   ✓ Trả về các kỳ có phản hồi (không nội suy kỳ trống)
   ✓ BS-05: Marketing lọc theo trung tâm -> 403 KHONG_DU_QUYEN
   ✓ BS-05: Marketing không nhận bảng theo kỹ thuật viên
-
 ===== BƯỚC 6. UC6 – danh sách phản hồi điểm thấp và kiểm tra QT-14/QT-15 (quản lý trung tâm)
-  OUTPUT: ["BH000052/2026 | HCM-01 | điểm 2 | 0956100138"]
-  ✓ BS-03: 1 dòng, mọi dòng đều có điểm <= 2
-  ✓ Phản hồi vừa gửi ở bước 3 (BH000052/2026) xuất hiện trong danh sách điểm thấp
+  OUTPUT: ["BH-000008/2025 | TTBH Quận 10 | điểm 2 | 0322506671","BH-001132/2026 | TTBH Quận 10 | điểm 1 | 0706634930","BH-001069/2026 | TTBH Quận 10 | điểm 2 | 0849036158","BH-000948/2026 | TTBH Quận 10 | điểm 2 | 0933138207","BH-000670/2026 | TTBH Quận 10 | điểm 2 | 0931023419"]
+  ✓ BS-03: 5 dòng, mọi dòng đều có điểm <= 2
+  ✓ Phản hồi vừa gửi ở bước 3 (BH-000008/2025) xuất hiện trong danh sách điểm thấp
   ✓ QT-14: chỉ có dữ liệu trung tâm 1
-  ✓ QT-15: quản lý thấy số điện thoại đầy đủ (không che bằng dấu *)
+  ✓ QT-15: quản lý thấy số điện thoại đầy đủ (không che bằng dấu *); khách nạp từ CSV chưa có số thì để trống
   ✓ QT-14: quản lý xem trung tâm khác -> 403
   ✓ Marketing xem danh sách phản hồi chi tiết -> 403
-
 ===== BƯỚC 7. Kiểm tra token: token bị sửa và token hết hạn đều phải bị từ chối
   ✓ Token bị sửa chữ ký -> 401 TOKEN_KHONG_HOP_LE
   ✓ Token hết hạn -> 401 TOKEN_KHONG_HOP_LE
-
+===== BƯỚC 8. CRUD tài khoản app_user (Ban giám đốc) – QT-13, QT-14, TK-01..03
+  INPUT: {"username":"ql.thu.65049","full_name":"Quản lý thử","role":"quan_ly","center_id":2}
+  OUTPUT: {"user_id":5,"username":"ql.thu.65049","full_name":"Quản lý thử","role":"quan_ly","center_id":2,"center_name":"TTBH Quận Tân Bình","is_active":true}
+  ✓ Create -> 201, gắn trung tâm 2, không trả mật khẩu băm
+  ✓ Read -> 200
+  ✓ Update vai trò sang marketing -> tự bỏ trung tâm (QT-14)
+  ✓ Delete -> khóa tài khoản, không xóa dòng (QT-13)
+  ✓ Quản lý không có trung tâm -> 400, field = center_id
+  ✓ BGĐ tự khóa mình -> 409 KHONG_TU_THAO_TAC
+  ✓ Quản lý trung tâm gọi API tài khoản -> 403
 == TOÀN BỘ LUỒNG CHẠY XONG, KHÔNG CÓ BƯỚC NÀO THẤT BẠI ==
 
-############ LẦN 2: dữ liệu nạp từ tệp CSV (npm run import -- <thư mục>) ############
+############ 5. Nạp mẫu bộ CSV chính thức của case study: $ npm run import -- data/sample (2 lần) ############
+Đã nạp từ data/sample: 6 trung tâm, 38 KTV, 1400 phiếu, 1200 khảo sát, 1351 khách (1351 khách tối thiểu chưa có SĐT)
+Tài khoản demo: đã có, giữ nguyên.
+Đã nạp từ data/sample: 6 trung tâm, 38 KTV, 1400 phiếu, 1200 khảo sát, 1351 khách (1351 khách tối thiểu chưa có SĐT)
+Tài khoản demo: đã có, giữ nguyên.
+  service_center  6 dòng (sau lần nạp thứ 2)
+  technician      38 dòng (sau lần nạp thứ 2)
+  ticket          1400 dòng (sau lần nạp thứ 2)
+  survey_response 1200 dòng (sau lần nạp thứ 2)
+  app_user        5 dòng (sau lần nạp thứ 2)
 
-
-
+############ 6. Chạy trọn luồng trên dữ liệu case study vừa nạp: $ npm run chay-luong ############
 ===== BƯỚC 1. Đăng nhập 4 vai trò (POST /api/auth/login)
   ✓ hethong đăng nhập -> 200, vai trò he_thong
-  ✓ quanly.hcm01 đăng nhập -> 200, vai trò quan_ly
+  ✓ quanly.tt01 đăng nhập -> 200, vai trò quan_ly
   ✓ bgd đăng nhập -> 200, vai trò bgd
   ✓ marketing đăng nhập -> 200, vai trò marketing
   ✓ Mật khẩu sai -> 401 SAI_TAI_KHOAN_HOAC_MAT_KHAU
   ✓ Gọi báo cáo khi chưa đăng nhập -> 401 CHUA_DANG_NHAP
-
 ===== BƯỚC 2. UC1 – hệ thống tạo khảo sát cho một phiếu ĐÃ ĐÓNG chưa có khảo sát
-  (bỏ qua UC1: dữ liệu đã tạo khảo sát cho mọi phiếu đóng; dùng phiếu BH000004/2026 đang chờ trả lời)
-
+  ✓ Tìm được phiếu ĐÃ ĐÓNG chưa khảo sát: BH-007581/2024 (trung tâm 1)
+  INPUT: {"ticket_id":7581}
+  OUTPUT: {"response_id":1201,"ticket_id":7581,"ticket_code":"BH-007581/2024","center_id":1,"center_name":"TTBH Quận 10","closed_at":"2024-10-10T15:37","status":"DA_GUI","sent_at":"2026-10-29T14:22:46.078Z","score":null,"comment":null,"responded_at":null,"low_score":false}
+  ✓ Tạo khảo sát -> 201, trạng thái DA_GUI
+  ✓ QT-10: tạo lần hai -> 409 DA_KHAO_SAT
 ===== BƯỚC 3. UC2 – khách hàng mở liên kết và gửi điểm (không cần đăng nhập)
   ✓ Form công khai không chứa thông tin khách hàng
   INPUT: {"score":2,"comment":"Sửa lâu, hẹn hai lần mới xong"}
-  OUTPUT: {"response_id":3,"ticket_id":4,"ticket_code":"BH000004/2026","center_id":2,"center_name":"CT-01","closed_at":"2026-07-20T16:45:00","status":"DA_TRA_LOI","sent_at":"2026-07-20T17:00:00","score":2,"comment":"Sửa lâu, hẹn hai lần mới xong","responded_at":"2026-10-23T16:15:45.140Z","low_score":true}
+  OUTPUT: {"response_id":1201,"ticket_id":7581,"ticket_code":"BH-007581/2024","center_id":1,"center_name":"TTBH Quận 10","closed_at":"2024-10-10T15:37","status":"DA_TRA_LOI","sent_at":"2026-10-29T14:22:46.078Z","score":2,"comment":"Sửa lâu, hẹn hai lần mới xong","responded_at":"2026-10-29T14:22:46.090Z","low_score":true}
   ✓ Gửi phản hồi -> 200, DA_TRA_LOI, BS-03 đánh dấu điểm thấp
   ✓ QT-10: gửi lần hai -> 409 DA_KHAO_SAT
   ✓ Điểm 6 (ngoài 1–5) -> 400 DU_LIEU_KHONG_HOP_LE
-
 ===== BƯỚC 4. UC3/UC4 – báo cáo CSAT toàn hệ thống và theo kỹ thuật viên (ban giám đốc)
   INPUT: from=2026-01-01&to=2026-12-31
-  OUTPUT: {"total_responses":3,"csat_percent":33.3,"avg_score":3,"low_score_count":2,"distribution":{"1":0,"2":2,"3":0,"4":0,"5":1},"warning":"MAU_CHUA_DU_TIN_CAY"}
-  ✓ BS-01: CSAT% = 1/3 = 33.3%
-  Top KTV: ["Nguyễn Văn An: 100% (1 phản hồi)","Trần Thị Lan: 0% (1 phản hồi)","Lê Minh Hùng: 0% (1 phản hồi)"]
-  ✓ UC4: có bảng theo kỹ thuật viên (3 người)
-  ✓ BS-02: kỹ thuật viên có dưới 5 phản hồi được gắn cảnh báo MAU_CHUA_DU_TIN_CAY
-
+  OUTPUT: {"total_responses":913,"csat_percent":69.2,"avg_score":3.9,"low_score_count":135,"distribution":{"1":54,"2":81,"3":146,"4":250,"5":382},"warning":null}
+  ✓ BS-01: CSAT% = 632/913 = 69.2%
+  Top KTV: ["Trần Xuân Nam: 90.5% (21 phản hồi)","Vũ Đức Thắng: 87% (23 phản hồi)","Phạm Bảo Thắng: 83.3% (18 phản hồi)"]
+  ✓ UC4: có bảng theo kỹ thuật viên (38 người)
+  ✓ BS-02: đúng những kỹ thuật viên có dưới 5 phản hồi bị gắn cảnh báo MAU_CHUA_DU_TIN_CAY
+  Mốc so sánh: {"ky_truoc":"2025-01-01..2025-12-31","csat_ky_truoc":68.1,"chenh_lech":1.1}
+  ✓ Mốc so sánh: kỳ trước của cả năm 2026 là cả năm 2025 (cùng số ngày, liền trước)
+  ✓ BGĐ lọc một trung tâm -> có thêm mốc "toàn hệ thống" bằng đúng CSAT toàn hệ thống
 ===== BƯỚC 5. UC5 – xu hướng CSAT theo quý (Marketing, chỉ số liệu tổng hợp)
-  OUTPUT: ["Q1/2026: 100% (1 phản hồi)","Q2/2026: 0% (1 phản hồi)","Q4/2026: 0% (1 phản hồi)"]
+  OUTPUT: ["Q1/2026: 68.6% (303 phản hồi)","Q2/2026: 68% (341 phản hồi)","Q3/2026: 71.6% (268 phản hồi)","Q4/2026: 0% (1 phản hồi)"]
   ✓ Trả về các kỳ có phản hồi (không nội suy kỳ trống)
   ✓ BS-05: Marketing lọc theo trung tâm -> 403 KHONG_DU_QUYEN
   ✓ BS-05: Marketing không nhận bảng theo kỹ thuật viên
-
 ===== BƯỚC 6. UC6 – danh sách phản hồi điểm thấp và kiểm tra QT-14/QT-15 (quản lý trung tâm)
-  OUTPUT: ["BH000002/2026 | HCM-01 | điểm 2 | KH00000102"]
-  ✓ BS-03: 1 dòng, mọi dòng đều có điểm <= 2
-  ✓ Phản hồi vừa gửi ở bước 3 (BH000004/2026) xuất hiện trong danh sách điểm thấp của ban giám đốc
+  OUTPUT: ["BH-007581/2024 | TTBH Quận 10 | điểm 2 | null","BH-007459/2026 | TTBH Quận 10 | điểm 2 | null","BH-004364/2026 | TTBH Quận 10 | điểm 2 | null","BH-004943/2026 | TTBH Quận 10 | điểm 1 | null","BH-003452/2026 | TTBH Quận 10 | điểm 2 | null"]
+  ✓ BS-03: 5 dòng, mọi dòng đều có điểm <= 2
+  ✓ Phản hồi vừa gửi ở bước 3 (BH-007581/2024) xuất hiện trong danh sách điểm thấp
   ✓ QT-14: chỉ có dữ liệu trung tâm 1
-  ✓ QT-15: quản lý thấy số điện thoại đầy đủ (không che bằng dấu *)
+  ✓ QT-15: quản lý thấy số điện thoại đầy đủ (không che bằng dấu *); khách nạp từ CSV chưa có số thì để trống
   ✓ QT-14: quản lý xem trung tâm khác -> 403
   ✓ Marketing xem danh sách phản hồi chi tiết -> 403
-
 ===== BƯỚC 7. Kiểm tra token: token bị sửa và token hết hạn đều phải bị từ chối
   ✓ Token bị sửa chữ ký -> 401 TOKEN_KHONG_HOP_LE
   ✓ Token hết hạn -> 401 TOKEN_KHONG_HOP_LE
-
+===== BƯỚC 8. CRUD tài khoản app_user (Ban giám đốc) – QT-13, QT-14, TK-01..03
+  INPUT: {"username":"ql.thu.66126","full_name":"Quản lý thử","role":"quan_ly","center_id":2}
+  OUTPUT: {"user_id":6,"username":"ql.thu.66126","full_name":"Quản lý thử","role":"quan_ly","center_id":2,"center_name":"TTBH Quận Tân Bình","is_active":true}
+  ✓ Create -> 201, gắn trung tâm 2, không trả mật khẩu băm
+  ✓ Read -> 200
+  ✓ Update vai trò sang marketing -> tự bỏ trung tâm (QT-14)
+  ✓ Delete -> khóa tài khoản, không xóa dòng (QT-13)
+  ✓ Quản lý không có trung tâm -> 400, field = center_id
+  ✓ BGĐ tự khóa mình -> 409 KHONG_TU_THAO_TAC
+  ✓ Quản lý trung tâm gọi API tài khoản -> 403
 == TOÀN BỘ LUỒNG CHẠY XONG, KHÔNG CÓ BƯỚC NÀO THẤT BẠI ==

@@ -1,23 +1,33 @@
-# Ánh xạ sơ đồ kiến trúc ↔ cấu trúc `src/`
+# Ánh xạ kiến trúc ↔ thư mục (bản ĐÃ HIỆN THỰC – BT2, tag v0.2)
 
-Sơ đồ: `docs/img/hinh3-1_kien-truc.png` (nguồn `docs/kien-truc_L8.drawio`). Hai khối lớn của sơ đồ là **Frontend** và **Backend API** nên `src/` có đúng hai thư mục `frontend/` và `backend/`; mỗi lớp bên trong Backend có một thư mục riêng.
+Sơ đồ thực tế: `docs/architecture-thuc-te.png` (nguồn Mermaid `docs/architecture-thuc-te.mmd`).
+Sơ đồ thiết kế BT1 (`docs/kien-truc_L8.drawio`, Hình 3.1) giữ nguyên làm mốc; mọi khác biệt ghi ở `docs/thay-doi-thiet-ke.md`.
 
-| Lớp trong sơ đồ kiến trúc | Thư mục / tệp | Trạng thái buổi 8 |
-|---|---|---|
-| Frontend (HTML/CSS/JS + Bootstrap + Chart.js) | `src/frontend/` | Khung giữ chỗ `index.html`; làm ở buổi 9–10 |
-| Backend API – Express | `src/backend/app.js` (ráp các lớp), `src/backend/server.js` (khởi động) | ✅ chạy được |
-| Access Middleware (QT-14, QT-15) | `src/backend/middleware/access.js` (+ `error-handler.js`) | ✅ vai trò mô phỏng bằng header (TD-09) |
-| Routes (nhận/trả HTTP) | `src/backend/routes/surveys.routes.js`, `reports.routes.js` | ✅ surveys · ⏳ reports (khung 501) |
-| Survey Service (UC1, UC2, UC7) | `src/backend/services/survey.service.js` | ✅ UC1, UC2; ⏳ UC7 (đã có cờ `low_score`) |
-| Report Service (UC3–UC6) | `src/backend/services/report.service.js` | ⏳ khung |
-| Repositories (chỉ SQL) | `src/backend/repositories/survey.repository.js`, `ticket.repository.js` | ✅ |
-| SQLite (survey_response, ticket, technician, customer, service_center, dim_date) | `src/backend/db/` – `connection.js`, `migrate.js`, `migrations/001_schema.sql`, `002_indexes.sql`, `seed.js`; tệp dữ liệu `data/*.db` (không commit) | ✅ |
-| CSV mẫu → script import | `data/raw/` (không commit) | ⏳ chưa nạp (TD-10) |
+| Lớp | Thư mục / tệp | Việc làm | Ghi chú so với BT1 |
+|---|---|---|---|
+| Frontend – trang | `src/frontend/*.html`, `pages/*.page.mjs` | 1 tệp cho 1 màn hình wireframe: khảo sát, báo cáo CSAT, xu hướng & điểm thấp, đăng nhập | bỏ Bootstrap, tự dựng CSS theo wireframe (TD-18) |
+| Frontend – dùng lại | `src/frontend/components/` | `DataState` (đang tải · rỗng 2 kiểu · lỗi + Thử lại), biểu đồ, định dạng số Việt Nam, thanh bên | |
+| Frontend – gọi API | `src/frontend/api/client.mjs`, `*.api.mjs` | NƠI DUY NHẤT gọi `fetch`; gắn token; 401 → về đăng nhập | test tự động chặn `fetch(` trong `pages/` |
+| Backend – khởi động | `src/backend/app.js`, `server.js`, `config/` | ráp các lớp; đọc biến môi trường | |
+| Access Middleware | `src/backend/middleware/access.js` | đọc token Bearer, `requireRole` (QT-14, BS-05) | header mô phỏng của buổi 8 đã thay bằng token (TD-14) |
+| Xử lý lỗi HTTP | `src/backend/middleware/error-handler.js` | NƠI DUY NHẤT quy mã lỗi nghiệp vụ → mã HTTP; định dạng `{error, message, field?}` | TD-20 |
+| Routes | `src/backend/routes/` – `auth`, `surveys`, `reports` (+ `/api/centers`), `users` | nhận/trả HTTP; thứ tự: phân quyền → validators → service | `users` mới (TD-21) |
+| Validators | `src/backend/validators/` | tầng validation 1: định dạng & kiểu, lỗi kèm tên trường | mới (TD-20) |
+| Services | `src/backend/services/` – `survey` (QT-10, QT-13), `report` (BS-01..05, mốc so sánh), `auth`, `user` (QT-13, QT-14, TK-01..03) | quy tắc nghiệp vụ; không SQL, không HTTP | `user` mới (TD-21); UC7 cắt (TD-16) |
+| Lỗi nghiệp vụ | `src/backend/errors/AppError.js` | mã lỗi ổn định, không mang mã HTTP | TD-20 |
+| Repositories | `src/backend/repositories/` – `survey`, `report`, `ticket`, `center`, `user` | CHỈ SQL tham số hóa | |
+| CSDL | `src/backend/db/connection.js` (SQLite qua `node:sqlite`), `migrate.js` | nơi duy nhất biết thư viện CSDL | SQLite thay PostgreSQL (lập luận 5 BT1); `node:sqlite` (TD-12) |
+| Migration | `migrations/001–004` | dựng CSDL từ trống, chạy lại không lỗi | chuyển ra gốc repo (TD-20); 004 mới (TD-23) |
+| Dữ liệu mẫu | `seeds/seed.js` (mô phỏng, seed = 42); `data/sample/*.csv` + `src/backend/db/import-csv.js` (mẫu bộ CSV chính thức) | | TD-23, TD-24 |
+| Đóng gói | `Dockerfile`, `docker-compose.yml` | chạy cả hệ thống bằng 2 lệnh | mới (TD-28) |
 
 ## Quy tắc phụ thuộc giữa các lớp
-`routes` → `services` → `repositories` → CSDL. Lớp trên chỉ gọi lớp ngay dưới; routes **không** chứa SQL, repositories **không** chứa quy tắc nghiệp vụ, services **không** biết gì về HTTP (nhận/trả dữ liệu thuần và ném `AppError` có mã).
+`routes` → `validators` + `services` → `repositories` → CSDL. Mũi tên chỉ đi xuống: services không `require` gì của Express và
+không chứa SQL (kiểm bằng `grep -nE "req|res|status\(|SELECT" src/backend/services/*.js` → không có kết quả);
+repositories không chứa quy tắc nghiệp vụ; `seeds/` dùng `utils/password.js`, không gọi ngược lên services.
 
 ## Vì sao chia như vậy
-- Quy tắc QT-10, QT-13, QT-14 nằm ở **một chỗ** (service), nên test được không cần dựng HTTP.
-- Đổi cơ chế xác thực (TD-09) chỉ sửa `backend/middleware/access.js`.
-- Đổi SQLite → PostgreSQL chỉ sửa `backend/db/connection.js` và các câu SQL trong `repositories/`.
+- Quy tắc QT-10, QT-13, QT-14, BS-01..05, TK-01..03 nằm ở **một chỗ** (services) nên test được không cần dựng HTTP
+  (`tests/*.service.test.js`), còn `tests/*.api.test.js` kiểm cả chuỗi qua HTTP.
+- Service ném lỗi có **mã** (`DA_KHAO_SAT`, `KHONG_DU_QUYEN`…), nên cùng quy tắc dùng được cho API, script nhập CSV và test.
+- Đổi SQLite → PostgreSQL chỉ sửa `db/connection.js` và câu SQL trong `repositories/`.

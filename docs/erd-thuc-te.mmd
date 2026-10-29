@@ -1,0 +1,63 @@
+%% ERD ĐÃ HIỆN THỰC (migrations 001–004). Khác ERD BT1: thêm app_user (TD-14), customer.phone cho phép trống (TD-23).
+erDiagram
+  service_center ||--o{ technician : "có"
+  service_center ||--o{ ticket : "tiếp nhận"
+  service_center |o--o{ app_user : "quản lý (QT-14)"
+  technician |o--o{ ticket : "xử lý"
+  customer ||--o{ ticket : "gửi"
+  ticket ||--o| survey_response : "được khảo sát (QT-10)"
+  dim_date |o--o{ survey_response : "ngày trả lời"
+
+  service_center {
+    INTEGER center_id PK
+    VARCHAR center_name UK
+    VARCHAR city
+  }
+  technician {
+    INTEGER technician_id PK
+    INTEGER center_id FK
+    VARCHAR full_name
+    VARCHAR level "SO_CAP|TRUNG_CAP|CAO_CAP"
+    BOOLEAN is_active
+  }
+  customer {
+    INTEGER customer_id PK
+    VARCHAR full_name
+    VARCHAR phone UK "NULL được; có thì 0 + 9 số (QT-02)"
+  }
+  ticket {
+    INTEGER ticket_id PK
+    VARCHAR ticket_code UK "BH-000123/2026"
+    INTEGER customer_id FK
+    INTEGER center_id FK
+    INTEGER technician_id FK
+    VARCHAR status "MOI..DA_DONG|DA_HUY"
+    TIMESTAMP closed_at
+  }
+  survey_response {
+    INTEGER response_id PK
+    INTEGER ticket_id FK,UK
+    VARCHAR status "DA_GUI|DA_TRA_LOI"
+    TIMESTAMP sent_at
+    SMALLINT score "1-5, NULL khi DA_GUI"
+    TEXT comment "<= 500"
+    TIMESTAMP responded_at
+    DATE responded_date FK
+    BOOLEAN is_deleted "QT-13"
+  }
+  dim_date {
+    DATE date_id PK
+    SMALLINT day
+    SMALLINT month
+    SMALLINT quarter
+    SMALLINT year
+  }
+  app_user {
+    INTEGER user_id PK
+    VARCHAR username UK
+    VARCHAR password_hash "scrypt"
+    VARCHAR full_name
+    VARCHAR role "he_thong|quan_ly|bgd|marketing"
+    INTEGER center_id FK "bắt buộc khi quan_ly"
+    BOOLEAN is_active "QT-13"
+  }

@@ -1,3 +1,6 @@
+-- DDL thiết kế ở BT1 (Chương 4) – luồng L8 Khảo sát hài lòng CSAT. Giữ nguyên làm mốc đối chiếu.
+-- Bản ĐÃ HIỆN THỰC là migrations/001–004 (thêm app_user – TD-14; customer.phone cho phép trống – TD-23);
+-- sơ đồ thực tế: docs/erd-thuc-te.png. Tên tệp cũ: DDL_LB.sql (đổi tên ở TD-29).
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE service_center (

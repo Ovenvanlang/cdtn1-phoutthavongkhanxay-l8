@@ -1,6 +1,25 @@
+# Thư viện và thứ sinh tự động (05_delivery/40 §3 – SE Node.js)
 node_modules/
+dist/
+build/
+coverage/
+*.log
+
+# Cấu hình bí mật: chỉ commit .env.example
 .env
+
+# CSDL SQLite sinh khi chạy
 data/*.db
 data/*.db-*
-*.log
+
+# Bộ CSV đầy đủ của case study KHÔNG commit (02_case_study/15 §3); chỉ giữ mẫu nhỏ
+data/raw/
+*.csv
+!data/sample/*.csv
+
+# Hệ điều hành / trình soạn thảo
 .DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/

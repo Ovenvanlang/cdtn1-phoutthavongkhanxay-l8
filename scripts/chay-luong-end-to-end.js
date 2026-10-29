@@ -8,7 +8,7 @@
 const config = require('../src/backend/config');
 const { openDb } = require('../src/backend/db/connection');
 const { migrate } = require('../src/backend/db/migrate');
-const { seed, seedUsers } = require('../src/backend/db/seed');
+const { seed, seedUsers } = require('../seeds/seed');
 const { createApp } = require('../src/backend/app');
 
 const SECRET = config.authSecret || 'khoa-chi-dung-cho-script-demo';

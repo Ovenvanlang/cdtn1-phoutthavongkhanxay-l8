@@ -11,8 +11,8 @@
     "start": "node --disable-warning=ExperimentalWarning src/backend/server.js",
     "dev": "node --disable-warning=ExperimentalWarning --watch src/backend/server.js",
     "migrate": "node --disable-warning=ExperimentalWarning src/backend/db/migrate.js",
-    "seed": "node --disable-warning=ExperimentalWarning src/backend/db/seed.js",
-    "db:setup": "node --disable-warning=ExperimentalWarning src/backend/db/migrate.js && node --disable-warning=ExperimentalWarning src/backend/db/seed.js",
+    "seed": "node --disable-warning=ExperimentalWarning seeds/seed.js",
+    "db:setup": "node --disable-warning=ExperimentalWarning src/backend/db/migrate.js && node --disable-warning=ExperimentalWarning seeds/seed.js",
     "test": "node --disable-warning=ExperimentalWarning --test",
     "import": "node --disable-warning=ExperimentalWarning src/backend/db/import-csv.js",
     "chay-luong": "node --disable-warning=ExperimentalWarning scripts/chay-luong-end-to-end.js"

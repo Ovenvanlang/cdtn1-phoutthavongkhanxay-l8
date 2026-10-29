@@ -1,8 +1,11 @@
-// Chạy các tệp migrations/*.sql theo thứ tự tên, mỗi tệp một lần (ghi vào schema_migrations).
+// Chạy các tệp migrations/*.sql (thư mục migrations/ ở gốc dự án) theo thứ tự tên,
+// mỗi tệp một lần (ghi vào schema_migrations) nên chạy lại bao nhiêu lần cũng không lỗi.
 const fs = require('node:fs');
 const path = require('node:path');
 
-function migrate(db, dir = path.join(__dirname, 'migrations')) {
+const MIGRATIONS_DIR = path.join(__dirname, '..', '..', '..', 'migrations');
+
+function migrate(db, dir = MIGRATIONS_DIR) {
   db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
              name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`);
   const done = new Set(db.prepare('SELECT name FROM schema_migrations').all().map((r) => r.name));

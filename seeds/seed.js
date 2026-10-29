@@ -4,8 +4,8 @@
 //        npm run seed -- --reset (xóa dữ liệu rồi nạp lại)
 const SEED = 42;
 
-const { hashPassword } = require('../services/auth.service');
-const { createUserRepository } = require('../repositories/user.repository');
+const { hashPassword } = require('../src/backend/services/auth.service');
+const { createUserRepository } = require('../src/backend/repositories/user.repository');
 
 /** Tạo 4 tài khoản DEMO (mỗi vai trò một tài khoản). Mật khẩu lấy từ DEMO_PASSWORD, chỉ lưu dạng băm. */
 function seedUsers(db, password) {
@@ -105,9 +105,9 @@ function seed(db, { seedValue = SEED, reset = false } = {}) {
 module.exports = { seed, seedUsers, SEED };
 
 if (require.main === module) {
-  const { openDb } = require('./connection');
-  const { migrate } = require('./migrate');
-  const config = require('../config');
+  const { openDb } = require('../src/backend/db/connection');
+  const { migrate } = require('../src/backend/db/migrate');
+  const config = require('../src/backend/config');
   const db = openDb(config.databaseFile);
   migrate(db);
   const reset = process.argv.includes('--reset');

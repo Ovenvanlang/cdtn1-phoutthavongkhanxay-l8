@@ -143,7 +143,7 @@ module.exports = { importCsv, readCsv };
 if (require.main === module) {
   const { openDb } = require('./connection');
   const { migrate } = require('./migrate');
-  const { seedUsers } = require('./seed');
+  const { seedUsers } = require('../../../seeds/seed');
   const config = require('../config');
   const dir = process.argv[2] || 'data/raw';
   if (!fs.existsSync(dir)) {

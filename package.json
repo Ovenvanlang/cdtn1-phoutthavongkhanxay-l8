@@ -1,6 +1,6 @@
 {
-  "name": "khao-sat-hai-long",
-  "version": "0.1.0",
+  "name": "cdtn1-phoutthavongkhanxay-l8",
+  "version": "0.2.0",
   "description": "Smart CRM – Mekong Mobile · Luồng L8: Khảo sát hài lòng CSAT (track SE)",
   "private": true,
   "main": "src/backend/server.js",

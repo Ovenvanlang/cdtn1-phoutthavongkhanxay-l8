@@ -1,5 +1,7 @@
 // Component DataState: MỌI vùng dữ liệu trên giao diện đều đi qua đây nên luôn có đủ
 // 3 trạng thái "đang tải / không có dữ liệu / lỗi + nút Thử lại" — không trang nào phải tự vẽ lại.
+// Trạng thái rỗng có hai nghĩa phải nói khác nhau (bài 65): "chưa có dữ liệu" và "bộ lọc không ra kết quả";
+// loại thứ hai kèm nút hành động (ví dụ "Xóa bộ lọc") để người dùng biết vấn đề nằm ở bộ lọc.
 export function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -33,8 +35,15 @@ export function createDataState(el, { emptyText = 'Chưa có dữ liệu cho b�
         <span class="ds__text">${escapeHtml(text)}</span></div>`);
     },
 
-    empty(text = emptyText) {
-      set('empty', `<div class="ds ds--empty"><p class="ds__text">${escapeHtml(text)}</p></div>`);
+    /**
+     * @param {string} [text]
+     * @param {{actionLabel?: string, onAction?: Function, kind?: 'chua-co-du-lieu'|'bo-loc'}} [opts]
+     */
+    empty(text = emptyText, { actionLabel, onAction, kind = 'chua-co-du-lieu' } = {}) {
+      const button = actionLabel && onAction
+        ? `<button type="button" class="nut-vien" data-ds-action>${escapeHtml(actionLabel)}</button>` : '';
+      set('empty', `<div class="ds ds--empty" data-kind="${kind}"><p class="ds__text">${escapeHtml(text)}</p>${button}</div>`);
+      if (button) el.querySelector('[data-ds-action]').addEventListener('click', () => onAction());
     },
 
     /** @param {{message?:string, code?:string}} err @param {Function} [onRetry] */
@@ -64,17 +73,18 @@ export function createDataState(el, { emptyText = 'Chưa có dữ liệu cho b�
  * @param {ReturnType<createDataState>} ds
  * @param {() => Promise<any>} loader hàm gọi API (lấy từ lớp api/, trang không gọi fetch)
  * @param {(data:any) => (string|Node|null)} render trả về null/'' nếu coi là KHÔNG CÓ DỮ LIỆU
+ * @param {{loadingText?:string, emptyText?:string, emptyOptions?:object}} [opts] emptyOptions chuyển cho ds.empty()
  */
-export async function load(ds, loader, render, { loadingText, emptyText } = {}) {
+export async function load(ds, loader, render, { loadingText, emptyText, emptyOptions } = {}) {
   ds.loading(loadingText);
   try {
     const data = await loader();
     const view = render(data);
-    if (view === null || view === undefined || view === '') ds.empty(emptyText);
+    if (view === null || view === undefined || view === '') ds.empty(emptyText, emptyOptions);
     else ds.content(view);
     return data;
   } catch (err) {
-    ds.error(err, () => load(ds, loader, render, { loadingText, emptyText }));
+    ds.error(err, () => load(ds, loader, render, { loadingText, emptyText, emptyOptions }));
     return null;
   }
 }

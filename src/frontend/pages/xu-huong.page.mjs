@@ -5,14 +5,14 @@ import { requireLogin, getUser } from '../api/client.mjs';
 import { createDataState, load, escapeHtml } from '../components/DataState.mjs';
 import { renderThanhBen, capNhatPhamVi } from '../components/thanh-ben.mjs';
 import { veDuongXuHuong } from '../components/bieu-do.mjs';
-import { nguyen, ngayGio } from '../components/dinh-dang.mjs';
+import { nguyen, ngayGio, phanTram } from '../components/dinh-dang.mjs';
 
 requireLogin();
 const vaiTro = getUser()?.role;
 const dangChon = location.hash === '#diem-thap' ? 'diem-thap' : 'xu-huong';
 renderThanhBen(document.getElementById('thanh-ben'), { dangChon });
 
-const dsXuHuong = createDataState(document.getElementById('vung-xu-huong'), { emptyText: 'Năm đã chọn chưa có phản hồi nào' });
+const dsXuHuong = createDataState(document.getElementById('vung-xu-huong'));
 const dsDiemThap = createDataState(document.getElementById('vung-diem-thap'), { emptyText: 'Không có phản hồi điểm thấp – một tin tốt' });
 const form = document.getElementById('form-loc');
 const oTrungTam = document.getElementById('center');
@@ -29,6 +29,15 @@ for (let y = namNay; y >= namNay - 3; y--) {
 }
 
 let bieuDo = null;
+
+/** Đang lọc khác mặc định? (năm khác năm nay hoặc chọn trung tâm; trung tâm bị khóa theo QT-14 không tính) */
+const dangLoc = () => Number(oNam.value) !== namNay || Boolean(oTrungTam.value && !oTrungTam.disabled);
+
+function xoaBoLoc() {
+  oNam.value = String(namNay);
+  if (!oTrungTam.disabled) oTrungTam.value = '';
+  tai();
+}
 
 /** Dàn các kỳ của năm theo trục thời gian: kỳ không có phản hồi để TRỐNG (null) – BS-02. */
 function dungTrucThoiGian(points, granularity) {
@@ -52,7 +61,9 @@ function veXuHuong(d) {
   const granularity = d.filters.granularity;
   const tenKy = granularity === 'quarter' ? 'quý' : 'tháng';
   oTenBieuDo.textContent = `CSAT theo ${tenKy} (%)`;
-  oGhiChuBieuDo.textContent = `${tenKy[0].toUpperCase()}${tenKy.slice(1)} không có dữ liệu để trống, không nội suy`;
+  const tb = d.year_summary;
+  oGhiChuBieuDo.textContent = `${tenKy[0].toUpperCase()}${tenKy.slice(1)} không có dữ liệu để trống, không nội suy`
+    + (tb.csat_percent != null ? ` · đường đứt nét: CSAT trung bình năm ${d.filters.year} = ${phanTram(tb.csat_percent)}` : '');
   if (!d.points.length) return null;
 
   const truc = dungTrucThoiGian(d.points, granularity);
@@ -67,7 +78,8 @@ function veXuHuong(d) {
 
   requestAnimationFrame(() => {
     if (bieuDo) bieuDo.destroy();
-    bieuDo = veDuongXuHuong(document.getElementById('bieu-do-xu-huong'), truc);
+    bieuDo = veDuongXuHuong(document.getElementById('bieu-do-xu-huong'), truc,
+      tb.csat_percent != null ? { value: tb.csat_percent, label: `TB năm ${d.filters.year}` } : null);
   });
   return wrap;
 }
@@ -81,7 +93,7 @@ function veDiemThap(res) {
       <td>${escapeHtml(r.technician_name || '—')}</td>
       <td class="diem-thap">${r.score}</td>
       <td>${r.comment ? escapeHtml(r.comment) : '<span class="mo">(không nhận xét)</span>'}</td>
-      <td>${escapeHtml(r.customer_phone)}</td>
+      <td>${r.customer_phone ? escapeHtml(r.customer_phone) : '<span class="mo">chưa có SĐT</span>'}</td>
     </tr>`).join('');
   return `<div class="bang-cuon">
       <table class="bang">
@@ -102,7 +114,11 @@ const locHienTai = () => ({
 
 async function tai() {
   const loc = locHienTai();
-  await load(dsXuHuong, () => reportsApi.trend(loc), veXuHuong, { loadingText: 'Đang tính xu hướng…' });
+  const rong = dangLoc()
+    ? { emptyText: `Không có phản hồi nào khớp bộ lọc (năm ${loc.year}${loc.centerId ? ', trung tâm đã chọn' : ''}).`,
+        emptyOptions: { actionLabel: 'Xóa bộ lọc', onAction: xoaBoLoc, kind: 'bo-loc' } }
+    : { emptyText: `Chưa có phản hồi nào trong năm ${namNay}.`, emptyOptions: { kind: 'chua-co-du-lieu' } };
+  await load(dsXuHuong, () => reportsApi.trend(loc), veXuHuong, { loadingText: 'Đang tính xu hướng…', ...rong });
 
   if (vaiTro === 'marketing') {                    // BS-05: Marketing không xem phản hồi chi tiết
     dsDiemThap.content('<div class="ghi-chu ghi-chu--xanh">Vai trò Marketing không xem phản hồi chi tiết của khách hàng (BS-05).</div>');

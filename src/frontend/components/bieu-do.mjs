@@ -18,6 +18,7 @@ function nhanGiaTri({ font = '600 12px "Segoe UI", sans-serif', mau = '#1f2328',
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       for (const meta of chart.getSortedVisibleDatasetMetas()) {
+        if (meta.index > 0) continue;                // chỉ ghi nhãn cho chuỗi dữ liệu chính, không cho đường tham chiếu
         meta.data.forEach((diem, i) => {
           const giaTri = meta._parsed[i]?.y;
           if (giaTri === null || giaTri === undefined) return;
@@ -75,10 +76,15 @@ export function veCotPhanBo(canvas, distribution) {
   });
 }
 
-export function veDuongXuHuong(canvas, points) {
+/**
+ * @param {{label:string, value:number|null}[]} points
+ * @param {{value:number, label:string}|null} [thamChieu] đường ngang đứt nét làm MỐC SO SÁNH (ví dụ CSAT trung bình cả năm)
+ */
+export function veDuongXuHuong(canvas, points, thamChieu = null) {
   if (!canvas || !globalThis.Chart) return null;
-  // Trục Y chia chẵn 10 điểm phần trăm bao quanh dữ liệu (ví dụ 77–86 -> 70, 80, 90)
+  // Trục Y chia chẵn 10 điểm phần trăm bao quanh dữ liệu và mốc (ví dụ 77–86 -> 70, 80, 90)
   const coGiaTri = points.map((p) => p.value).filter((v) => v != null);
+  if (thamChieu?.value != null) coGiaTri.push(thamChieu.value);
   const yMin = Math.max(0, Math.floor((Math.min(...coGiaTri) - 3) / 10) * 10);
   const yMax = Math.min(100, Math.ceil((Math.max(...coGiaTri) + 3) / 10) * 10);
   return new globalThis.Chart(canvas, {
@@ -94,14 +100,27 @@ export function veDuongXuHuong(canvas, points) {
         borderWidth: 2,
         spanGaps: false,                           // KHÔNG nối qua kỳ trống (BS-02)
         tension: 0,
-      }],
+      },
+      ...(thamChieu?.value != null ? [{
+        label: thamChieu.label,
+        data: points.map(() => thamChieu.value),
+        borderColor: '#8a9099',
+        borderDash: [6, 4],
+        borderWidth: 1.5,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        fill: false,
+      }] : [])],
     },
     options: {
       maintainAspectRatio: false,
       layout: { padding: { top: 24 } },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: (c) => phanTram(c.parsed.y) } },
+        tooltip: {
+          filter: (item) => item.datasetIndex === 0,
+          callbacks: { label: (c) => phanTram(c.parsed.y) },
+        },
       },
       scales: {
         x: { grid: { display: false } },

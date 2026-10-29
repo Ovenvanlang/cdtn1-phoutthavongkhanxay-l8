@@ -7,10 +7,24 @@ const { createReportService } = require('../src/backend/services/report.service'
 const NOW = () => new Date('2026-10-10T08:00:00Z');   // quý 4/2026
 const CENTERS = [{ center_id: 1, center_name: 'HCM-01', city: 'TP.HCM' }, { center_id: 2, center_name: 'CT-01', city: 'Cần Thơ' }];
 
-function setup({ summary, distribution = [], byTechnician = [], trend = [] } = {}) {
-  const goi = {};
+const RONG = { total_responses: 0, high_count: null, low_count: null, avg_score: null };
+
+/**
+ * @param {object} [o]
+ * @param {object} [o.summary] số liệu kỳ đang xem
+ * @param {object} [o.previous] số liệu kỳ trước (mặc định rỗng)
+ * @param {object} [o.company] số liệu toàn hệ thống (mặc định = summary)
+ */
+function setup({ summary = RONG, previous = RONG, company, distribution = [], byTechnician = [], trend = [] } = {}) {
+  const goi = { summary: [] };
   const reportRepo = {
-    summary: (f) => { goi.summary = f; return summary; },
+    // Lần gọi đầu là kỳ đang xem; kỳ khác "from" là kỳ trước; centerId null khi đang lọc trung tâm là toàn hệ thống
+    summary: (f) => {
+      goi.summary.push(f);
+      if (goi.summary.length === 1) return summary;
+      if (f.from !== goi.summary[0].from) return previous;
+      return company || summary;
+    },
     closedTickets: (f) => { goi.closedTickets = f; return 380; },
     distribution: () => distribution,
     byTechnician: () => byTechnician,
@@ -59,12 +73,12 @@ test('BS-02 (ngoại lệ): không có phản hồi -> csat_percent = null và C
   assert.strictEqual(d.warning, 'CHUA_CO_PHAN_HOI');
 });
 
-test('Khoảng thời gian: mặc định là quý hiện tại; from > to (kể cả khi một đầu lấy mặc định) -> lỗi dữ liệu', () => {
+test('Khoảng thời gian: mặc định từ đầu năm đến hôm nay; from > to (kể cả khi một đầu lấy mặc định) -> lỗi dữ liệu', () => {
   const { service, goi } = setup({ summary: { total_responses: 0, high_count: 0, low_count: 0, avg_score: null } });
   const d = service.csat(BGD, {}).data;
-  assert.strictEqual(d.filters.from, '2026-10-01', 'mặc định lấy từ đầu quý 4/2026');
+  assert.strictEqual(d.filters.from, '2026-01-01', 'mặc định lấy từ đầu năm 2026');
   assert.strictEqual(d.filters.to, '2026-10-10');
-  assert.strictEqual(goi.summary.from, '2026-10-01');
+  assert.strictEqual(goi.summary[0].from, '2026-01-01');
 
   assert.throws(() => service.csat(BGD, { from: '2026-12-31' }), (e) => e.code === 'DU_LIEU_KHONG_HOP_LE' && e.field === 'from',
     'from sau "hôm nay" (đầu to mặc định) phải bị từ chối');
@@ -73,7 +87,7 @@ test('Khoảng thời gian: mặc định là quý hiện tại; from > to (kể
 test('QT-14: quản lý bị ép theo trung tâm mình, xin trung tâm khác -> 403', () => {
   const { service, goi } = setup({ summary: { total_responses: 1, high_count: 1, low_count: 0, avg_score: 5 } });
   const d = service.csat(QUAN_LY_1, {}).data;
-  assert.strictEqual(goi.summary.centerId, 1);
+  assert.strictEqual(goi.summary[0].centerId, 1);
   assert.strictEqual(d.filters.center_name, 'HCM-01');
   assert.throws(() => service.csat(QUAN_LY_1, { centerId: 2 }), (e) => e.code === 'KHONG_DU_QUYEN');
   assert.strictEqual(service.listCenters(QUAN_LY_1).data.length, 1, 'bộ lọc chỉ có trung tâm của mình');
@@ -110,6 +124,8 @@ test('UC5: xu hướng chỉ trả các kỳ CÓ phản hồi (không nội suy)
             { period: 3, total_responses: 2, high_count: 1, avg_score: 3 }],
   });
   const d = service.trend(BGD, { granularity: 'quarter', year: 2026 }).data;
+  assert.deepStrictEqual({ from: d.year_summary.from, to: d.year_summary.to }, { from: '2026-01-01', to: '2026-12-31' },
+    'mốc tham chiếu của biểu đồ: CSAT trung bình cả năm');
   assert.strictEqual(d.points.length, 2, 'quý 2 không có dữ liệu thì không xuất hiện');
   assert.deepStrictEqual(d.points.map((p) => p.label), ['Q1/2026', 'Q3/2026']);
   assert.strictEqual(d.points[0].csat_percent, 100);
@@ -124,4 +140,31 @@ test('UC6: danh sách điểm thấp luôn ép status=DA_TRA_LOI và score_max=2
   assert.strictEqual(goi.list.status, 'DA_TRA_LOI');
   assert.strictEqual(goi.list.scoreMax, 2);
   assert.strictEqual(kq.meta.low_score_threshold, 2);
+});
+
+test('Mốc so sánh: kỳ trước cùng độ dài liền trước; chênh lệch CSAT tính theo điểm phần trăm', () => {
+  const { service, goi } = setup({
+    summary: { total_responses: 20, high_count: 15, low_count: 2, avg_score: 4 },      // 75%
+    previous: { total_responses: 10, high_count: 6, low_count: 3, avg_score: 3.6 },    // 60%
+  });
+  const d = service.csat(BGD, { from: '2026-10-01', to: '2026-10-10' }).data;
+  assert.deepStrictEqual({ from: goi.summary[1].from, to: goi.summary[1].to }, { from: '2026-09-21', to: '2026-09-30' },
+    '10 ngày 01–10/10 -> kỳ trước là 10 ngày 21–30/09');
+  assert.strictEqual(d.comparison.previous.csat_percent, 60);
+  assert.strictEqual(d.comparison.csat_delta, 15);
+  assert.strictEqual(d.comparison.company, null, 'không lọc trung tâm thì chính nó đã là toàn hệ thống');
+});
+
+test('Mốc so sánh (biên): kỳ trước không có phản hồi -> csat_delta = null, không bịa ra 0', () => {
+  const { service } = setup({ summary: { total_responses: 5, high_count: 4, low_count: 0, avg_score: 4.2 } });
+  const d = service.csat(BGD, {}).data;
+  assert.strictEqual(d.comparison.previous.csat_percent, null);
+  assert.strictEqual(d.comparison.csat_delta, null);
+});
+
+test('Mốc toàn hệ thống: BGĐ lọc một trung tâm thì có; quản lý trung tâm thì KHÔNG (QT-14)', () => {
+  const opts = { summary: { total_responses: 8, high_count: 6, low_count: 1, avg_score: 4 },
+    company: { total_responses: 100, high_count: 70, low_count: 15, avg_score: 3.9 } };
+  assert.strictEqual(setup(opts).service.csat(BGD, { centerId: 1 }).data.comparison.company.csat_percent, 70);
+  assert.strictEqual(setup(opts).service.csat(QUAN_LY_1, {}).data.comparison.company, null);
 });

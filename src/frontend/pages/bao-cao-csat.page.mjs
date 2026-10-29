@@ -5,7 +5,7 @@ import { requireLogin, getUser } from '../api/client.mjs';
 import { createDataState, load, escapeHtml } from '../components/DataState.mjs';
 import { renderThanhBen, capNhatPhamVi } from '../components/thanh-ben.mjs';
 import { veCotPhanBo } from '../components/bieu-do.mjs';
-import { phanTram, so, nguyen } from '../components/dinh-dang.mjs';
+import { phanTram, so, nguyen, ngay, chenhLech } from '../components/dinh-dang.mjs';
 
 requireLogin();                                   // chưa có token -> client.mjs tự chuyển về đăng nhập
 const vaiTro = getUser()?.role;
@@ -14,7 +14,7 @@ renderThanhBen(document.getElementById('thanh-ben'), { dangChon });
 
 const dsTongQuan = createDataState(document.getElementById('tong-quan'));
 const dsPhanBo = createDataState(document.getElementById('vung-phan-bo'));
-const dsKtv = createDataState(document.getElementById('vung-ktv'), { emptyText: 'Chưa có phản hồi nào gắn với kỹ thuật viên' });
+const dsKtv = createDataState(document.getElementById('vung-ktv'));
 const form = document.getElementById('form-loc');
 const oTrungTam = document.getElementById('center');
 const oPhamVi = document.getElementById('pham-vi');
@@ -25,6 +25,35 @@ const NHAN_CANH_BAO = {
 };
 
 let bieuDo = null;
+
+/** Người dùng có đang lọc không (trung tâm bị khóa theo QT-14/BS-05 không tính là bộ lọc). */
+const dangLoc = () => Boolean(form.from.value || form.to.value || (oTrungTam.value && !oTrungTam.disabled));
+
+function xoaBoLoc() {
+  form.from.value = '';
+  form.to.value = '';
+  if (!oTrungTam.disabled) oTrungTam.value = '';
+  taiBaoCao();
+}
+
+/** Hai kiểu rỗng (bài 65): bộ lọc không ra kết quả -> kèm nút Xóa bộ lọc; chưa có dữ liệu -> nói rõ là chưa có. */
+function kieuRong(chuaCo) {
+  return dangLoc()
+    ? { emptyText: 'Không có phản hồi nào khớp bộ lọc đang chọn.',
+        emptyOptions: { actionLabel: 'Xóa bộ lọc', onAction: xoaBoLoc, kind: 'bo-loc' } }
+    : { emptyText: chuaCo, emptyOptions: { kind: 'chua-co-du-lieu' } };
+}
+
+/** Dòng so sánh với kỳ trước dưới số CSAT (mốc so sánh bắt buộc của TP3). */
+function soVoiKyTruoc(c) {
+  const ky = `${ngay(c.previous.from)}–${ngay(c.previous.to)}`;
+  if (c.csat_delta == null) {
+    return `<span class="so-sanh so-sanh--ngang">Kỳ trước (${escapeHtml(ky)}) chưa có phản hồi để so sánh</span>`;
+  }
+  const lop = c.csat_delta > 0 ? 'tang' : c.csat_delta < 0 ? 'giam' : 'ngang';
+  return `<span class="so-sanh so-sanh--${lop}">${escapeHtml(chenhLech(c.csat_delta))} so với kỳ trước
+    (${escapeHtml(phanTram(c.previous.csat_percent))})</span>`;
+}
 
 function veTongQuan(d) {
   oPhamVi.textContent = d.filters.center_id
@@ -40,28 +69,34 @@ function veTongQuan(d) {
   const phuTong = d.closed_tickets != null
     ? `trên ${nguyen(d.closed_tickets)} phiếu đã đóng`
     : 'phiếu đã trả lời';
+  const c = d.comparison;
+  const kyTruoc = `kỳ trước (${ngay(c.previous.from)}–${ngay(c.previous.to)})`;
+  const toanHeThong = c.company
+    ? `<span class="so-sanh so-sanh--ngang">Toàn hệ thống: ${escapeHtml(phanTram(c.company.csat_percent))}</span>` : '';
 
   return `
+    <p class="khoi__ghi-chu" style="margin:0 0 8px">Khoảng đang xem: ${escapeHtml(ngay(d.filters.from))} – ${escapeHtml(ngay(d.filters.to))}
+      · so sánh với ${escapeHtml(kyTruoc)} cùng số ngày</p>
     <div class="hang-the">
       <div class="the">
         <div class="the__nhan">CSAT (điểm ≥ 4)</div>
         <div class="the__so ${d.csat_percent != null ? 'the__so--tot' : ''}">${phanTram(d.csat_percent)}</div>
-        <div class="the__phu">${escapeHtml(phuCsat)}</div>
+        <div class="the__phu">${escapeHtml(phuCsat)}${soVoiKyTruoc(c)}${toanHeThong}</div>
       </div>
       <div class="the">
         <div class="the__nhan">Điểm trung bình</div>
         <div class="the__so">${so(d.avg_score)}</div>
-        <div class="the__phu">thang 1–5</div>
+        <div class="the__phu">thang 1–5 · kỳ trước ${escapeHtml(so(c.previous.avg_score))}</div>
       </div>
       <div class="the">
         <div class="the__nhan">Tổng phản hồi</div>
         <div class="the__so">${nguyen(d.total_responses)}</div>
-        <div class="the__phu">${escapeHtml(phuTong)}</div>
+        <div class="the__phu">${escapeHtml(phuTong)} · kỳ trước ${escapeHtml(nguyen(c.previous.total_responses))}</div>
       </div>
       <div class="the">
         <div class="the__nhan">Điểm thấp (≤ 2)</div>
         <div class="the__so the__so--canh-bao">${nguyen(d.low_score_count)}</div>
-        <div class="the__phu">cần liên hệ khách</div>
+        <div class="the__phu">cần liên hệ khách · kỳ trước ${escapeHtml(nguyen(c.previous.low_score_count))}</div>
       </div>
     </div>${canhBao}`;
 }
@@ -115,8 +150,8 @@ async function taiBaoCao() {
   // Một lần gọi API dùng cho cả ba vùng; mỗi vùng vẫn có đủ 3 trạng thái của DataState
   const d = await load(dsTongQuan, () => reportsApi.csat(loc), veTongQuan, { loadingText: 'Đang tính CSAT…' });
   if (d) {
-    await load(dsPhanBo, async () => d, vePhanBo, { emptyText: 'Chưa có phản hồi để vẽ biểu đồ' });
-    await load(dsKtv, async () => d, veBangKtv);
+    await load(dsPhanBo, async () => d, vePhanBo, kieuRong('Chưa có phản hồi nào trong khoảng thời gian này để vẽ biểu đồ.'));
+    await load(dsKtv, async () => d, veBangKtv, kieuRong('Chưa có phản hồi nào gắn với kỹ thuật viên trong khoảng thời gian này.'));
   } else {
     const loi = { message: 'Không tải được dữ liệu vì báo cáo lỗi', code: 'PHU_THUOC_BAO_CAO' };
     dsPhanBo.error(loi, taiBaoCao);

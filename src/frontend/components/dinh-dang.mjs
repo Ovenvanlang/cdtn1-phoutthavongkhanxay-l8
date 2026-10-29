@@ -7,6 +7,15 @@ export function phanTram(value, soLe = 1) {
   return `${value.toLocaleString(VN, { minimumFractionDigits: soLe, maximumFractionDigits: soLe })}%`;
 }
 
+/** Chênh lệch điểm phần trăm: 3.4 -> "▲ +3,4 điểm"; -2 -> "▼ −2,0 điểm"; 0 -> "= 0,0 điểm". */
+export function chenhLech(value) {
+  if (value == null) return '—';
+  const so = Math.abs(value).toLocaleString(VN, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  if (value > 0) return `▲ +${so} điểm`;
+  if (value < 0) return `▼ −${so} điểm`;
+  return `= ${so} điểm`;
+}
+
 /** 4.21 -> "4,21" */
 export function so(value, soLe = 2) {
   if (value == null) return '—';

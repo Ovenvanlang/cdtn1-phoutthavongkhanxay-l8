@@ -168,6 +168,12 @@ table.bang { width: 100%; border-collapse: collapse; font-size: 14px; }
 .ds { padding: 16px; border-radius: 6px; border: 1px dashed var(--vien); background: var(--trang); }
 .ds--loading { display: flex; align-items: center; gap: 10px; color: var(--chu-mo); }
 .ds--empty { color: var(--chu-mo); }
+.ds--empty .nut-vien { margin-top: 8px; }
+/* Mốc so sánh trên thẻ KPI */
+.so-sanh { display: block; margin-top: 4px; font-size: 12.5px; }
+.so-sanh--tang { color: var(--xanh-la); }
+.so-sanh--giam { color: var(--do); }
+.so-sanh--ngang { color: var(--chu-mo); }
 .ds--error { border-style: solid; border-color: #f0b3b3; background: var(--do-nen); }
 .ds__text { font-weight: 600; margin: 0 0 4px; }
 .ds--loading .ds__text, .ds--empty .ds__text { font-weight: 400; }

@@ -76,6 +76,35 @@ test('DataState.load: API trả rỗng -> trạng thái "không có dữ liệu"
   assert.match(ds.element.textContent, /Không có phản hồi điểm thấp/);
 });
 
+test('DataState: hai kiểu rỗng – "chưa có dữ liệu" không có nút; "bộ lọc không ra kết quả" có nút Xóa bộ lọc', async () => {
+  const { createDataState, load } = await nhapDataState();
+  const chuaCo = createDataState(oTrong());
+  chuaCo.empty('Chưa có phản hồi nào trong năm 2026.');
+  assert.strictEqual(chuaCo.element.querySelector('[data-ds-action]'), null);
+  assert.strictEqual(chuaCo.element.querySelector('.ds').dataset.kind, 'chua-co-du-lieu');
+
+  const boLoc = createDataState(oTrong());
+  let daXoa = 0;
+  await load(boLoc, async () => ({ rows: [] }), () => null, {
+    emptyText: 'Không có phản hồi nào khớp bộ lọc đang chọn.',
+    emptyOptions: { actionLabel: 'Xóa bộ lọc', onAction: () => { daXoa += 1; }, kind: 'bo-loc' },
+  });
+  assert.strictEqual(boLoc.state, 'empty');
+  assert.strictEqual(boLoc.element.querySelector('.ds').dataset.kind, 'bo-loc');
+  const nut = boLoc.element.querySelector('[data-ds-action]');
+  assert.strictEqual(nut.textContent.trim(), 'Xóa bộ lọc');
+  nut.click();
+  assert.strictEqual(daXoa, 1);
+});
+
+test('Định dạng mốc so sánh: chênh lệch có dấu và mũi tên, thiếu số thì "—"', async () => {
+  const { chenhLech } = await import(path.join(FRONTEND, 'components', 'dinh-dang.mjs'));
+  assert.strictEqual(chenhLech(3.4), '▲ +3,4 điểm');
+  assert.strictEqual(chenhLech(-2), '▼ −2,0 điểm');
+  assert.strictEqual(chenhLech(0), '= 0,0 điểm');
+  assert.strictEqual(chenhLech(null), '—');
+});
+
 test('DataState: nội dung do máy chủ trả về được thoát ký tự (chống XSS)', async () => {
   const { createDataState, escapeHtml } = await nhapDataState();
   const el = oTrong();

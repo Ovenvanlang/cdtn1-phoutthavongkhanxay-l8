@@ -8,6 +8,8 @@
 //   BS-05  Marketing chỉ xem số liệu TỔNG HỢP toàn hệ thống: không lọc theo trung tâm,
 //          không xem bảng theo kỹ thuật viên.
 //   QT-14  Quản lý trung tâm chỉ thấy dữ liệu trung tâm mình.
+//   Mốc so sánh: mỗi con số CSAT đi kèm kỳ trước cùng độ dài (và toàn hệ thống khi BGĐ lọc một trung tâm);
+//          xu hướng kèm CSAT trung bình cả năm.
 const E = require('../errors/AppError');
 
 const MIN_SAMPLE = 5;      // BS-02
@@ -30,12 +32,36 @@ function warningFor(total) {
   return null;
 }
 
-/** Khoảng mặc định: quý hiện tại (từ ngày đầu quý đến hôm nay). */
-function currentQuarterRange(today) {
-  const y = today.getUTCFullYear();
-  const startMonth = Math.floor(today.getUTCMonth() / 3) * 3;
-  const from = new Date(Date.UTC(y, startMonth, 1)).toISOString().slice(0, 10);
-  return { from, to: today.toISOString().slice(0, 10) };
+const DAY_MS = 86400000;
+
+/** Khoảng mặc định: từ đầu năm đến hôm nay (TD-27). */
+function yearToDateRange(today) {
+  return { from: `${today.getUTCFullYear()}-01-01`, to: today.toISOString().slice(0, 10) };
+}
+
+/** Kỳ trước để so sánh: cùng số ngày, liền ngay trước `from` (ví dụ 01/01–29/10 -> 05/03–31/12 năm trước). */
+function previousRange({ from, to }) {
+  const start = Date.parse(`${from}T00:00:00Z`);
+  const days = Math.round((Date.parse(`${to}T00:00:00Z`) - start) / DAY_MS) + 1;
+  const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+  return { from: iso(start - days * DAY_MS), to: iso(start - DAY_MS) };
+}
+
+/** Chênh lệch CSAT (điểm phần trăm, 1 chữ số); thiếu một phía thì không so sánh được -> null. */
+function delta(current, previous) {
+  return current == null || previous == null ? null : Math.round((current - previous) * 10) / 10;
+}
+
+/** Gói số liệu tổng hợp của một phạm vi để làm mốc so sánh. */
+function benchmark(sum, range) {
+  const total = sum.total_responses || 0;
+  return {
+    ...range,
+    total_responses: total,
+    csat_percent: percent(sum.high_count || 0, total),
+    avg_score: round2(sum.avg_score),
+    low_score_count: sum.low_count || 0,
+  };
 }
 
 function createReportService({ reportRepo, centerRepo, surveyService, now = () => new Date() }) {
@@ -57,7 +83,7 @@ function createReportService({ reportRepo, centerRepo, surveyService, now = () =
 
   /** Khoảng thời gian: thiếu đầu nào thì lấy theo mặc định (quy tắc báo cáo), rồi kiểm tra thứ tự. */
   function resolveRange({ from, to }) {
-    const def = currentQuarterRange(now());
+    const def = yearToDateRange(now());
     const range = { from: from || def.from, to: to || def.to };
     if (range.from > range.to) throw E.invalid('from phải nhỏ hơn hoặc bằng to', 'from');
     return range;
@@ -92,6 +118,15 @@ function createReportService({ reportRepo, centerRepo, surveyService, now = () =
         }))
         .sort((a, b) => (b.csat_percent ?? -1) - (a.csat_percent ?? -1) || b.total_responses - a.total_responses);
 
+      // Mốc so sánh (TP3 – "số liệu phải có mốc"): kỳ trước cùng độ dài, và toàn hệ thống khi BGĐ lọc một trung tâm.
+      // Quản lý trung tâm KHÔNG nhận số toàn hệ thống (QT-14: chỉ xem dữ liệu trung tâm mình).
+      const prevRange = previousRange({ from, to });
+      const previous = benchmark(reportRepo.summary({ centerId, ...prevRange }), prevRange);
+      const company = centerId != null && user.role === 'bgd'
+        ? benchmark(reportRepo.summary({ centerId: null, from, to }), { from, to })
+        : null;
+      const csatPercent = percent(high, total);
+
       return {
         data: {
           filters: {
@@ -102,7 +137,7 @@ function createReportService({ reportRepo, centerRepo, surveyService, now = () =
           },
           total_responses: total,
           closed_tickets: reportRepo.closedTickets ? reportRepo.closedTickets(filters) : null,
-          csat_percent: percent(high, total),            // BS-01
+          csat_percent: csatPercent,                     // BS-01
           avg_score: round2(sum.avg_score),
           high_score_count: high,
           low_score_count: sum.low_count || 0,           // BS-03
@@ -110,6 +145,11 @@ function createReportService({ reportRepo, centerRepo, surveyService, now = () =
           warning: warningFor(total),                    // BS-02
           min_sample: MIN_SAMPLE,
           by_technician: byTechnician,                   // UC4 (null với Marketing – BS-05)
+          comparison: {
+            previous,
+            csat_delta: delta(csatPercent, previous.csat_percent),
+            company,
+          },
         },
         meta: { generated_at: now().toISOString() },
       };
@@ -121,9 +161,13 @@ function createReportService({ reportRepo, centerRepo, surveyService, now = () =
       const year = yearIn ?? now().getUTCFullYear();
 
       const rows = reportRepo.trend({ granularity, year, centerId });
+      // Mốc tham chiếu cho biểu đồ: CSAT trung bình cả năm (vẽ đường đứt nét)
+      const yearRange = { from: `${year}-01-01`, to: `${year}-12-31` };
+      const yearSummary = benchmark(reportRepo.summary({ centerId, ...yearRange }), yearRange);
       return {
         data: {
           filters: { center_id: centerId, granularity, year },
+          year_summary: yearSummary,
           points: rows.map((r) => ({
             period: r.period,
             label: granularity === 'quarter' ? `Q${r.period}/${year}` : `${String(r.period).padStart(2, '0')}/${year}`,
@@ -155,4 +199,4 @@ function createReportService({ reportRepo, centerRepo, surveyService, now = () =
   };
 }
 
-module.exports = { createReportService, MIN_SAMPLE, HIGH_SCORE, LOW_SCORE };
+module.exports = { createReportService, previousRange, MIN_SAMPLE, HIGH_SCORE, LOW_SCORE };

@@ -12,10 +12,10 @@ function setup() {
   const db = openDb(':memory:');
   migrate(db);
   db.exec(`
-    INSERT INTO service_center(center_name, city) VALUES ('HCM-01','TP.HCM');
+    INSERT INTO service_center(center_name, city) VALUES ('TTBH Quận 10','TP. Hồ Chí Minh');
     INSERT INTO customer(full_name, phone) VALUES ('Khach A','0912345678');
     INSERT INTO ticket(ticket_code, customer_id, center_id, status, closed_at)
-      VALUES ('BH000001/2026',1,1,'DA_DONG','2026-10-09T10:00:00Z');
+      VALUES ('BH-000001/2026',1,1,'DA_DONG','2026-10-09T10:00:00Z');
   `);
   return db;
 }

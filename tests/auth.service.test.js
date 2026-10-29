@@ -9,7 +9,7 @@ const MAT_KHAU = 'Demo@2026';
 
 function setup({ ttlHours = 8, now = () => new Date('2026-10-10T08:00:00Z'), user } = {}) {
   const macDinh = {
-    user_id: 7, username: 'ql1', full_name: 'Quản lý HCM-01',
+    user_id: 7, username: 'ql1', full_name: 'Quản lý TTBH Quận 10',
     role: 'quan_ly', center_id: 1, is_active: 1, password_hash: hashPassword(MAT_KHAU),
   };
   const taiKhoan = user === null ? null : { ...macDinh, ...user };

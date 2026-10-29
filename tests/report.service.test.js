@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const { createReportService } = require('../src/backend/services/report.service');
 
 const NOW = () => new Date('2026-10-10T08:00:00Z');   // quý 4/2026
-const CENTERS = [{ center_id: 1, center_name: 'HCM-01', city: 'TP.HCM' }, { center_id: 2, center_name: 'CT-01', city: 'Cần Thơ' }];
+const CENTERS = [{ center_id: 1, center_name: 'TTBH Quận 10', city: 'TP. Hồ Chí Minh' }, { center_id: 2, center_name: 'TTBH Ninh Kiều', city: 'Cần Thơ' }];
 
 const RONG = { total_responses: 0, high_count: null, low_count: null, avg_score: null };
 
@@ -88,7 +88,7 @@ test('QT-14: quản lý bị ép theo trung tâm mình, xin trung tâm khác -> 
   const { service, goi } = setup({ summary: { total_responses: 1, high_count: 1, low_count: 0, avg_score: 5 } });
   const d = service.csat(QUAN_LY_1, {}).data;
   assert.strictEqual(goi.summary[0].centerId, 1);
-  assert.strictEqual(d.filters.center_name, 'HCM-01');
+  assert.strictEqual(d.filters.center_name, 'TTBH Quận 10');
   assert.throws(() => service.csat(QUAN_LY_1, { centerId: 2 }), (e) => e.code === 'KHONG_DU_QUYEN');
   assert.strictEqual(service.listCenters(QUAN_LY_1).data.length, 1, 'bộ lọc chỉ có trung tâm của mình');
 });

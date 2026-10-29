@@ -18,14 +18,14 @@ before(async () => {
   db = openDb(':memory:');
   migrate(db);
   db.exec(`
-    INSERT INTO service_center(center_name, city) VALUES ('HCM-01','TP.HCM'), ('CT-01','Cần Thơ');
+    INSERT INTO service_center(center_name, city) VALUES ('TTBH Quận 10','TP. Hồ Chí Minh'), ('TTBH Ninh Kiều','Cần Thơ');
     INSERT INTO customer(full_name, phone) VALUES ('Khach A','0912345678'), ('Khach B','0987654321');
     INSERT INTO ticket(ticket_code, customer_id, center_id, status, closed_at) VALUES
-      ('BH000001/2026',1,1,'DA_DONG','2026-10-09T10:00:00Z'),
-      ('BH000002/2026',2,1,'DA_DONG','2026-10-09T11:00:00Z'),
-      ('BH000003/2026',1,1,'DANG_XU_LY',NULL),
-      ('BH000004/2026',2,1,'DA_DONG','2026-10-09T12:00:00Z'),
-      ('BH000005/2026',1,2,'DA_DONG','2026-10-09T13:00:00Z');
+      ('BH-000001/2026',1,1,'DA_DONG','2026-10-09T10:00:00Z'),
+      ('BH-000002/2026',2,1,'DA_DONG','2026-10-09T11:00:00Z'),
+      ('BH-000003/2026',1,1,'DANG_XU_LY',NULL),
+      ('BH-000004/2026',2,1,'DA_DONG','2026-10-09T12:00:00Z'),
+      ('BH-000005/2026',1,2,'DA_DONG','2026-10-09T13:00:00Z');
   `);
   const insUser = db.prepare('INSERT INTO app_user(username, password_hash, full_name, role, center_id) VALUES (?,?,?,?,?)');
   for (const [username, role, centerId] of [

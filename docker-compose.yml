@@ -1,0 +1,21 @@
+# Chạy toàn bộ hệ thống bằng 2 lệnh (README mục 3b):
+#   cp .env.example .env
+#   docker compose up --build
+# Mở http://localhost:3000 . Dữ liệu SQLite nằm trong volume csat_data nên khởi động lại không mất, không nhân đôi.
+services:
+  app:
+    build: .
+    env_file:
+      - path: .env
+        required: true          # AUTH_SECRET, TOKEN_TTL_HOURS, DEMO_PASSWORD lấy từ .env – KHÔNG ghi cứng ở đây
+    environment:
+      PORT: 3000                         # cổng bên trong container cố định
+      DATABASE_FILE: /app/data/khao-sat.db
+    ports:
+      - "${PORT:-3000}:3000"             # cổng trên máy lấy theo PORT trong .env
+    volumes:
+      - csat_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  csat_data:

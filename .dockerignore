@@ -1,0 +1,16 @@
+# Không đưa vào image: thư viện của máy, bí mật, dữ liệu sinh ra, tài liệu và test (bài 44 – bắt buộc)
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+data/*.db
+data/*.db-*
+data/raw
+docs
+tests
+scripts
+*.md
+Dockerfile
+docker-compose.yml
+.dockerignore

@@ -33,7 +33,11 @@ function createAuthService({ userRepo, secret, ttlHours = 8, now = () => new Dat
     return { token: `${body}.${sign(body)}`, expires_at: new Date(payload.exp * 1000).toISOString() };
   }
 
-  /** Giải mã + kiểm tra token. Mọi trường hợp sai đều trả cùng một lỗi 401 (không nói rõ sai ở đâu). */
+  /**
+   * Giải mã + kiểm tra token. Mọi trường hợp sai đều trả cùng một mã TOKEN_KHONG_HOP_LE (không nói rõ sai ở đâu).
+   * Sau khi chữ ký hợp lệ, đọc lại tài khoản: tài khoản đã bị khóa thì token cũ hết tác dụng ngay,
+   * và vai trò/trung tâm luôn lấy theo dữ liệu hiện tại (TD-21).
+   */
   function verifyToken(token) {
     const parts = String(token || '').split('.');
     if (parts.length !== 3) throw E.invalidToken();
@@ -48,11 +52,13 @@ function createAuthService({ userRepo, secret, ttlHours = 8, now = () => new Dat
     }
     if (!payload || typeof payload.exp !== 'number') throw E.invalidToken();
     if (payload.exp * 1000 <= now().getTime()) throw E.invalidToken();     // hết hạn
+    const user = userRepo.findById(payload.sub);
+    if (!user || !user.is_active) throw E.invalidToken();                  // tài khoản bị khóa/không còn
     return {
-      userId: payload.sub,
-      name: payload.name,
-      role: payload.role,
-      centerId: payload.center_id ?? null,
+      userId: user.user_id,
+      name: user.full_name,
+      role: user.role,
+      centerId: user.center_id ?? null,
     };
   }
 

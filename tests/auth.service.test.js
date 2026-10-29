@@ -13,7 +13,10 @@ function setup({ ttlHours = 8, now = () => new Date('2026-10-10T08:00:00Z'), use
     role: 'quan_ly', center_id: 1, is_active: 1, password_hash: hashPassword(MAT_KHAU),
   };
   const taiKhoan = user === null ? null : { ...macDinh, ...user };
-  const userRepo = { findByUsername: (u) => (taiKhoan && taiKhoan.username === u ? taiKhoan : undefined) };
+  const userRepo = {
+    findByUsername: (u) => (taiKhoan && taiKhoan.username === u ? taiKhoan : undefined),
+    findById: (id) => (taiKhoan && taiKhoan.user_id === id ? { ...taiKhoan, is_active: Boolean(taiKhoan.is_active) } : undefined),
+  };
   return { service: createAuthService({ userRepo, secret: SECRET, ttlHours, now }), taiKhoan };
 }
 
@@ -72,4 +75,12 @@ test('Biên hết hạn: còn 1 giây thì chấp nhận, qua đúng thời đi�
 
   gio = new Date('2026-10-10T09:00:00Z');
   assert.throws(() => service.verifyToken(token), (e) => e.code === 'TOKEN_KHONG_HOP_LE', 'đúng giây hết hạn phải bị từ chối');
+});
+
+test('Tài khoản bị khóa SAU khi đăng nhập: token cũ bị từ chối ngay, không chờ hết hạn (QT-13, TD-21)', () => {
+  const { service, taiKhoan } = setup();
+  const token = service.login({ username: 'ql1', password: MAT_KHAU }).token;
+  assert.strictEqual(service.verifyToken(token).role, 'quan_ly');
+  taiKhoan.is_active = 0;                                     // BGĐ khóa tài khoản
+  assert.throws(() => service.verifyToken(token), (e) => e.code === 'TOKEN_KHONG_HOP_LE');
 });

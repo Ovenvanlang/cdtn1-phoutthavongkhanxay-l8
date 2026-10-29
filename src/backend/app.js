@@ -12,9 +12,11 @@ const { createReportRepository } = require('./repositories/report.repository');
 const { createAuthService } = require('./services/auth.service');
 const { createSurveyService } = require('./services/survey.service');
 const { createReportService } = require('./services/report.service');
+const { createUserService } = require('./services/user.service');
 const { createAuthRoutes } = require('./routes/auth.routes');
 const { createSurveyRoutes } = require('./routes/surveys.routes');
 const { createReportRoutes, createCenterRoutes } = require('./routes/reports.routes');
+const { createUserRoutes } = require('./routes/users.routes');
 
 const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
 const NODE_MODULES = path.join(__dirname, '..', '..', 'node_modules');
@@ -34,6 +36,7 @@ function createApp({ db, now, authSecret = config.authSecret, tokenTtlHours = co
   const authService = createAuthService({ userRepo, secret: authSecret, ttlHours: tokenTtlHours, now });
   const surveyService = createSurveyService({ surveyRepo, ticketRepo, now });
   const reportService = createReportService({ reportRepo, centerRepo, surveyService, now });
+  const userService = createUserService({ userRepo, centerRepo });
 
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -43,6 +46,7 @@ function createApp({ db, now, authSecret = config.authSecret, tokenTtlHours = co
   app.use('/api/surveys', createSurveyRoutes(surveyService));
   app.use('/api/reports', createReportRoutes(reportService));
   app.use('/api/centers', createCenterRoutes(reportService));
+  app.use('/api/users', createUserRoutes(userService));
 
   // Giao diện: src/frontend (cùng cổng nên gọi API bằng đường dẫn tương đối, không cần CORS)
   app.use(express.static(FRONTEND_DIR));

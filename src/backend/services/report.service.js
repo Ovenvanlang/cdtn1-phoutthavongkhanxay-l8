@@ -8,13 +8,11 @@
 //   BS-05  Marketing chỉ xem số liệu TỔNG HỢP toàn hệ thống: không lọc theo trung tâm,
 //          không xem bảng theo kỹ thuật viên.
 //   QT-14  Quản lý trung tâm chỉ thấy dữ liệu trung tâm mình.
-const E = require('../errors');
+const E = require('../errors/AppError');
 
 const MIN_SAMPLE = 5;      // BS-02
 const HIGH_SCORE = 4;      // BS-01
 const LOW_SCORE = 2;       // BS-03
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function percent(high, total) {
   if (!total) return null;                               // BS-02: không có phản hồi -> null, KHÔNG phải 0
@@ -32,13 +30,6 @@ function warningFor(total) {
   return null;
 }
 
-function checkDate(value, field) {
-  if (!DATE_RE.test(String(value))) throw E.invalid(`${field} phải theo dạng YYYY-MM-DD`);
-  const d = new Date(`${value}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) throw E.invalid(`${field} không phải ngày hợp lệ`);
-  return value;
-}
-
 /** Khoảng mặc định: quý hiện tại (từ ngày đầu quý đến hôm nay). */
 function currentQuarterRange(today) {
   const y = today.getUTCFullYear();
@@ -48,38 +39,35 @@ function currentQuarterRange(today) {
 }
 
 function createReportService({ reportRepo, centerRepo, surveyService, now = () => new Date() }) {
-  /** Xác định trung tâm được xem: QT-14 cho quản lý, BS-05 cho marketing. */
-  function resolveCenter(user, rawCenterId) {
+  /** Xác định trung tâm được xem: QT-14 cho quản lý, BS-05 cho marketing, BGĐ xem mọi nơi. */
+  function resolveCenter(user, centerId) {
     if (user.role === 'quan_ly') {
       if (!user.centerId) throw E.forbidden('Quản lý phải thuộc một trung tâm');
-      if (rawCenterId != null && Number(rawCenterId) !== user.centerId)
-        throw E.forbidden('Không được xem dữ liệu trung tâm khác (QT-14)');
+      if (centerId != null && centerId !== user.centerId) throw E.forbidden('Không được xem dữ liệu trung tâm khác (QT-14)');
       return user.centerId;
     }
     if (user.role === 'marketing') {
-      if (rawCenterId != null) throw E.forbidden('Marketing chỉ xem số liệu tổng hợp toàn hệ thống (BS-05)');
+      if (centerId != null) throw E.forbidden('Marketing chỉ xem số liệu tổng hợp toàn hệ thống (BS-05)');
       return null;
     }
-    if (rawCenterId == null) return null;                // bgd: null = toàn hệ thống
-    if (!/^\d+$/.test(String(rawCenterId))) throw E.invalid('center_id phải là số nguyên dương');
-    const centerId = Number(rawCenterId);
+    if (centerId == null) return null;                   // bgd: null = toàn hệ thống
     if (!centerRepo.findById(centerId)) throw E.notFound('Không có trung tâm này');
     return centerId;
   }
 
-  function resolveRange(query) {
+  /** Khoảng thời gian: thiếu đầu nào thì lấy theo mặc định (quy tắc báo cáo), rồi kiểm tra thứ tự. */
+  function resolveRange({ from, to }) {
     const def = currentQuarterRange(now());
-    const from = query.from != null ? checkDate(query.from, 'from') : def.from;
-    const to = query.to != null ? checkDate(query.to, 'to') : def.to;
-    if (from > to) throw E.invalid('from phải nhỏ hơn hoặc bằng to');
-    return { from, to };
+    const range = { from: from || def.from, to: to || def.to };
+    if (range.from > range.to) throw E.invalid('from phải nhỏ hơn hoặc bằng to', 'from');
+    return range;
   }
 
   return {
     /** UC3 + UC4 – CSAT theo trung tâm, kèm bảng theo kỹ thuật viên. */
-    csat(user, query = {}) {
-      const centerId = resolveCenter(user, query.center_id);
-      const { from, to } = resolveRange(query);
+    csat(user, { centerId: requested = null, from: fromIn = null, to: toIn = null } = {}) {
+      const centerId = resolveCenter(user, requested);
+      const { from, to } = resolveRange({ from: fromIn, to: toIn });
       const filters = { centerId, from, to };
 
       const sum = reportRepo.summary(filters);
@@ -128,12 +116,9 @@ function createReportService({ reportRepo, centerRepo, surveyService, now = () =
     },
 
     /** UC5 – xu hướng CSAT theo tháng/quý của một năm. Kỳ không có phản hồi KHÔNG được nội suy. */
-    trend(user, query = {}) {
-      const centerId = resolveCenter(user, query.center_id);
-      const granularity = query.granularity || 'month';
-      if (!['month', 'quarter'].includes(granularity)) throw E.invalid("granularity phải là 'month' hoặc 'quarter'");
-      const year = query.year != null ? Number(query.year) : now().getUTCFullYear();
-      if (!Number.isInteger(year) || year < 2000 || year > 2100) throw E.invalid('year không hợp lệ');
+    trend(user, { centerId: requested = null, granularity = 'month', year: yearIn = null } = {}) {
+      const centerId = resolveCenter(user, requested);
+      const year = yearIn ?? now().getUTCFullYear();
 
       const rows = reportRepo.trend({ granularity, year, centerId });
       return {
@@ -153,8 +138,8 @@ function createReportService({ reportRepo, centerRepo, surveyService, now = () =
     },
 
     /** UC6 – danh sách phản hồi điểm thấp (<= 2). Dùng lại Survey Service để không lặp quy tắc QT-14/QT-15. */
-    lowScore(user, query = {}) {
-      const result = surveyService.list(user, { ...query, status: 'DA_TRA_LOI', score_max: String(LOW_SCORE) });
+    lowScore(user, { centerId = null, page = 1, limit = 20 } = {}) {
+      const result = surveyService.list(user, { status: 'DA_TRA_LOI', scoreMax: LOW_SCORE, centerId, page, limit });
       return { ...result, meta: { ...result.meta, low_score_threshold: LOW_SCORE } };
     },
 

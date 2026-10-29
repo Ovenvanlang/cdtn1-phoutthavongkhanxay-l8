@@ -1,14 +1,9 @@
-// Lớp service: quy tắc nghiệp vụ (QT-10, QT-13, QT-14, BS-03). Không chứa SQL, không biết gì về HTTP.
-const E = require('../errors');
+// Lớp service: quy tắc nghiệp vụ của khảo sát (QT-10, QT-13, QT-14, BS-03).
+// Không chứa SQL, không biết gì về HTTP. Dữ liệu vào ĐÃ được validators/survey.validator.js
+// kiểm định dạng; ở đây chỉ còn các điều kiện phải tra dữ liệu mới biết (tầng validation 2).
+const E = require('../errors/AppError');
 
-const MAX_COMMENT = 500;
 const LOW_SCORE = 2; // BS-03
-
-function toId(value, field = 'ticket_id') {
-  const n = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
-  if (!Number.isSafeInteger(n) || n <= 0) throw E.invalid(`${field} phải là số nguyên dương`);
-  return n;
-}
 
 function createSurveyService({ surveyRepo, ticketRepo, now = () => new Date() }) {
   function present(row) {
@@ -16,9 +11,8 @@ function createSurveyService({ surveyRepo, ticketRepo, now = () => new Date() })
   }
 
   return {
-    /** UC1 – tạo khảo sát cho phiếu ĐÃ ĐÓNG (do hệ thống kích hoạt). */
-    create(rawTicketId) {
-      const ticketId = toId(rawTicketId);
+    /** UC1 – tạo khảo sát cho phiếu ĐÃ ĐÓNG (do tác nhân hệ thống kích hoạt – TD-25). */
+    create({ ticketId }) {
       const ticket = ticketRepo.findById(ticketId);
       if (!ticket) throw E.notFound('Không có phiếu bảo hành này');
       if (ticket.status !== 'DA_DONG') throw E.ticketNotClosed();            // QT-10
@@ -33,22 +27,14 @@ function createSurveyService({ surveyRepo, ticketRepo, now = () => new Date() })
     },
 
     /** Xem form khảo sát của một phiếu (khách mở liên kết). Không lộ thông tin khách. */
-    getByTicket(rawTicketId) {
-      const row = surveyRepo.findByTicketId(toId(rawTicketId));
+    getByTicket(ticketId) {
+      const row = surveyRepo.findByTicketId(ticketId);
       if (!row) throw E.notFound('Khảo sát không khả dụng');
       return present(row);
     },
 
     /** UC2 – khách gửi điểm 1–5 và nhận xét. */
-    submit(rawTicketId, body) {
-      const ticketId = toId(rawTicketId);
-      const score = body && body.score;
-      if (!Number.isInteger(score) || score < 1 || score > 5) throw E.invalid('score phải là số nguyên từ 1 đến 5');
-      let comment = body.comment;
-      if (comment === undefined || comment === null) comment = null;
-      else if (typeof comment !== 'string') throw E.invalid('comment phải là chuỗi');
-      else { comment = comment.trim() || null; if (comment && comment.length > MAX_COMMENT) throw E.invalid(`comment tối đa ${MAX_COMMENT} ký tự`); }
-
+    submit(ticketId, { score, comment }) {
       const raw = surveyRepo.findRawByTicketId(ticketId);
       if (!raw || raw.is_deleted) throw E.notFound('Khảo sát không khả dụng');
       if (raw.status === 'DA_TRA_LOI') throw E.alreadySurveyed();           // QT-10
@@ -58,25 +44,19 @@ function createSurveyService({ surveyRepo, ticketRepo, now = () => new Date() })
     },
 
     /** Danh sách cho nhân viên – phạm vi theo QT-14. */
-    list(user, query = {}) {
-      let centerId = query.center_id != null ? toId(query.center_id, 'center_id') : null;
+    list(user, { status = null, centerId = null, scoreMax = null, page = 1, limit = 20 } = {}) {
+      let scope = centerId;
       if (user.role === 'quan_ly') {
         if (!user.centerId) throw E.forbidden('Quản lý phải thuộc một trung tâm');
         if (centerId != null && centerId !== user.centerId) throw E.forbidden('Không được xem dữ liệu trung tâm khác (QT-14)');
-        centerId = user.centerId;
+        scope = user.centerId;
       }
-      if (query.status && !['DA_GUI', 'DA_TRA_LOI'].includes(query.status)) throw E.invalid('status không hợp lệ');
-      const scoreMax = query.score_max != null ? Number(query.score_max) : null;
-      if (scoreMax != null && !(Number.isInteger(scoreMax) && scoreMax >= 1 && scoreMax <= 5)) throw E.invalid('score_max phải từ 1 đến 5');
-      const limit = Math.min(Number(query.limit) || 20, 100);
-      const page = Math.max(Number(query.page) || 1, 1);
-      const { rows, total } = surveyRepo.list({ status: query.status, centerId, scoreMax, limit, offset: (page - 1) * limit });
+      const { rows, total } = surveyRepo.list({ status, centerId: scope, scoreMax, limit, offset: (page - 1) * limit });
       return { data: rows.map(present), meta: { page, limit, total } };
     },
 
     /** Xóa MỀM (QT-13): không xóa vật lý, giữ nguyên lịch sử. */
-    remove(user, rawTicketId) {
-      const ticketId = toId(rawTicketId);
+    remove(user, ticketId) {
       const ticket = ticketRepo.findById(ticketId);
       if (!ticket) throw E.notFound('Không có phiếu bảo hành này');
       if (user.role === 'quan_ly' && ticket.center_id !== user.centerId) throw E.forbidden('Không được thao tác trung tâm khác (QT-14)');
@@ -86,4 +66,4 @@ function createSurveyService({ surveyRepo, ticketRepo, now = () => new Date() })
   };
 }
 
-module.exports = { createSurveyService };
+module.exports = { createSurveyService, LOW_SCORE };

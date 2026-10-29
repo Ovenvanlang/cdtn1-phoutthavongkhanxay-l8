@@ -1,7 +1,8 @@
 // Test lớp nghiệp vụ ĐĂNG NHẬP, độc lập với HTTP và CSDL (dùng repository giả).
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { createAuthService, hashPassword, verifyPassword } = require('../src/backend/services/auth.service');
+const { createAuthService } = require('../src/backend/services/auth.service');
+const { hashPassword, verifyPassword } = require('../src/backend/utils/password');
 
 const SECRET = 'khoa-test';
 const MAT_KHAU = 'Demo@2026';
@@ -38,24 +39,22 @@ test('Đăng nhập đúng -> token mang đúng vai trò và trung tâm (QT-14)'
   assert.strictEqual(payload.userId, 7);
 });
 
-test('Ngoại lệ đăng nhập: thiếu dữ liệu -> 400; sai mật khẩu / không có tài khoản / tài khoản khóa -> 401', () => {
+test('Ngoại lệ đăng nhập: sai mật khẩu / không có tài khoản / tài khoản đã khóa -> cùng một mã lỗi', () => {
   const { service } = setup();
-  assert.throws(() => service.login({ username: 'ql1' }), (e) => e.status === 400 && e.code === 'DU_LIEU_KHONG_HOP_LE');
-  assert.throws(() => service.login({}), (e) => e.status === 400);
   assert.throws(() => service.login({ username: 'ql1', password: 'sai' }),
-    (e) => e.status === 401 && e.code === 'SAI_TAI_KHOAN_HOAC_MAT_KHAU');
+    (e) => e.code === 'SAI_TAI_KHOAN_HOAC_MAT_KHAU');
   assert.throws(() => service.login({ username: 'khong-co', password: MAT_KHAU }),
     (e) => e.code === 'SAI_TAI_KHOAN_HOAC_MAT_KHAU', 'không được lộ việc tài khoản có tồn tại hay không');
   const khoa = setup({ user: { is_active: 0 } }).service;
-  assert.throws(() => khoa.login({ username: 'ql1', password: MAT_KHAU }), (e) => e.status === 401);
+  assert.throws(() => khoa.login({ username: 'ql1', password: MAT_KHAU }), (e) => e.code === 'SAI_TAI_KHOAN_HOAC_MAT_KHAU');
 });
 
-test('Token bị sửa chữ ký, sai định dạng hoặc đổi thuật toán đều bị từ chối (401)', () => {
+test('Token bị sửa chữ ký, sai định dạng hoặc đổi thuật toán đều bị từ chối (TOKEN_KHONG_HOP_LE)', () => {
   const { service } = setup();
   const token = service.login({ username: 'ql1', password: MAT_KHAU }).token;
   const [header, payload, chuKy] = token.split('.');
 
-  const sai = (t) => assert.throws(() => service.verifyToken(t), (e) => e.status === 401 && e.code === 'TOKEN_KHONG_HOP_LE');
+  const sai = (t) => assert.throws(() => service.verifyToken(t), (e) => e.code === 'TOKEN_KHONG_HOP_LE');
   sai(`${header}.${payload}.${chuKy.slice(0, -2)}xx`);                 // sửa chữ ký
   sai(`${header}.${Buffer.from('{"sub":1,"role":"bgd","exp":99999999999}').toString('base64url')}.${chuKy}`); // nâng quyền
   sai(`${Buffer.from('{"alg":"none","typ":"JWT"}').toString('base64url')}.${payload}.`);                      // alg=none

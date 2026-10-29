@@ -1,10 +1,11 @@
+// Test qua HTTP (routes + validators + services + repositories + CSDL thật trong bộ nhớ).
 // Chạy: npm test     (dùng node:test có sẵn, CSDL SQLite trong bộ nhớ, không đụng tới data/*.db)
 const { test, before, after } = require('node:test');
 const assert = require('node:assert');
 const { openDb } = require('../src/backend/db/connection');
 const { migrate } = require('../src/backend/db/migrate');
 const { createApp } = require('../src/backend/app');
-const { hashPassword } = require('../src/backend/services/auth.service');
+const { hashPassword } = require('../src/backend/utils/password');
 
 let db, server, base;
 const TOKEN = {};
@@ -91,6 +92,17 @@ test('UC2: điểm ngoài 1–5 hoặc sai kiểu -> 400 và khảo sát vẫn �
     assert.strictEqual(r.status, 400, `score=${JSON.stringify(bad)} phải bị từ chối`);
   }
   assert.strictEqual(db.prepare('SELECT status FROM survey_response WHERE ticket_id=1').get().status, 'DA_GUI');
+});
+
+test('Dữ liệu sai (thiếu trường bắt buộc): gửi phản hồi không có score -> 400 kèm tên trường, không sập', async () => {
+  const r = await call('POST', '/api/surveys/1', { body: { comment: 'Quên chấm điểm' } });
+  assert.strictEqual(r.status, 400);
+  assert.strictEqual(r.json.error, 'DU_LIEU_KHONG_HOP_LE');
+  assert.strictEqual(r.json.field, 'score', 'phải nói rõ trường nào sai');
+  assert.match(r.json.message, /score/);
+  const thieuTicket = await call('POST', '/api/surveys', { ...he_thong(), body: {} });
+  assert.strictEqual(thieuTicket.status, 400);
+  assert.strictEqual(thieuTicket.json.field, 'ticket_id');
 });
 
 test('UC2: nhận xét quá 500 ký tự -> 400', async () => {

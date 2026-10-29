@@ -4,7 +4,7 @@
 //        npm run seed -- --reset (xóa dữ liệu rồi nạp lại)
 const SEED = 42;
 
-const { hashPassword } = require('../src/backend/services/auth.service');
+const { hashPassword } = require('../src/backend/utils/password');
 const { createUserRepository } = require('../src/backend/repositories/user.repository');
 
 /** Tạo 4 tài khoản DEMO (mỗi vai trò một tài khoản). Mật khẩu lấy từ DEMO_PASSWORD, chỉ lưu dạng băm. */

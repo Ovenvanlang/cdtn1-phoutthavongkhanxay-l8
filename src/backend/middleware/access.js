@@ -3,7 +3,7 @@
 // (thay cho header X-Role mô phỏng ở buổi 8 – xem docs/thay-doi-thiet-ke.md, TD-14).
 // Không có token  -> coi là KHÁCH HÀNG: chỉ dùng được các API khảo sát công khai.
 // Token sai/hết hạn -> 401 để frontend xóa token và quay về trang đăng nhập.
-const E = require('../errors');
+const E = require('../errors/AppError');
 
 const GUEST = { role: 'khach_hang', centerId: null, userId: null, name: 'Khách hàng' };
 

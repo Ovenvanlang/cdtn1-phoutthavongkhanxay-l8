@@ -59,15 +59,15 @@ test('BS-02 (ngoại lệ): không có phản hồi -> csat_percent = null và C
   assert.strictEqual(d.warning, 'CHUA_CO_PHAN_HOI');
 });
 
-test('Khoảng thời gian: mặc định là quý hiện tại; ngày sai định dạng hoặc from > to -> 400', () => {
+test('Khoảng thời gian: mặc định là quý hiện tại; from > to (kể cả khi một đầu lấy mặc định) -> lỗi dữ liệu', () => {
   const { service, goi } = setup({ summary: { total_responses: 0, high_count: 0, low_count: 0, avg_score: null } });
   const d = service.csat(BGD, {}).data;
   assert.strictEqual(d.filters.from, '2026-10-01', 'mặc định lấy từ đầu quý 4/2026');
   assert.strictEqual(d.filters.to, '2026-10-10');
   assert.strictEqual(goi.summary.from, '2026-10-01');
 
-  assert.throws(() => service.csat(BGD, { from: '10/01/2026' }), (e) => e.status === 400);
-  assert.throws(() => service.csat(BGD, { from: '2026-12-31', to: '2026-01-01' }), (e) => e.status === 400);
+  assert.throws(() => service.csat(BGD, { from: '2026-12-31' }), (e) => e.code === 'DU_LIEU_KHONG_HOP_LE' && e.field === 'from',
+    'from sau "hôm nay" (đầu to mặc định) phải bị từ chối');
 });
 
 test('QT-14: quản lý bị ép theo trung tâm mình, xin trung tâm khác -> 403', () => {
@@ -75,7 +75,7 @@ test('QT-14: quản lý bị ép theo trung tâm mình, xin trung tâm khác -> 
   const d = service.csat(QUAN_LY_1, {}).data;
   assert.strictEqual(goi.summary.centerId, 1);
   assert.strictEqual(d.filters.center_name, 'HCM-01');
-  assert.throws(() => service.csat(QUAN_LY_1, { center_id: '2' }), (e) => e.status === 403);
+  assert.throws(() => service.csat(QUAN_LY_1, { centerId: 2 }), (e) => e.code === 'KHONG_DU_QUYEN');
   assert.strictEqual(service.listCenters(QUAN_LY_1).data.length, 1, 'bộ lọc chỉ có trung tâm của mình');
 });
 
@@ -85,7 +85,7 @@ test('BS-05: Marketing chỉ xem tổng hợp – không có bảng kỹ thuật
     byTechnician: [{ technician_id: 1, full_name: 'KTV A', level: 'SO_CAP', total_responses: 10, high_count: 9, low_count: 1, avg_score: 4.6 }],
   });
   assert.strictEqual(service.csat(MARKETING, {}).data.by_technician, null);
-  assert.throws(() => service.csat(MARKETING, { center_id: '1' }), (e) => e.status === 403);
+  assert.throws(() => service.csat(MARKETING, { centerId: 1 }), (e) => e.code === 'KHONG_DU_QUYEN');
   assert.deepStrictEqual(service.listCenters(MARKETING).data, []);
 });
 
@@ -104,25 +104,24 @@ test('UC4: bảng kỹ thuật viên xếp theo CSAT giảm dần và gắn cả
   assert.strictEqual(bang[1].warning, null);
 });
 
-test('UC5: xu hướng chỉ trả các kỳ CÓ phản hồi (không nội suy) và kiểm tra tham số', () => {
+test('UC5: xu hướng chỉ trả các kỳ CÓ phản hồi (không nội suy); mặc định năm hiện tại', () => {
   const { service } = setup({
     trend: [{ period: 1, total_responses: 6, high_count: 6, avg_score: 4.7 },
             { period: 3, total_responses: 2, high_count: 1, avg_score: 3 }],
   });
-  const d = service.trend(BGD, { granularity: 'quarter', year: '2026' }).data;
+  const d = service.trend(BGD, { granularity: 'quarter', year: 2026 }).data;
   assert.strictEqual(d.points.length, 2, 'quý 2 không có dữ liệu thì không xuất hiện');
   assert.deepStrictEqual(d.points.map((p) => p.label), ['Q1/2026', 'Q3/2026']);
   assert.strictEqual(d.points[0].csat_percent, 100);
   assert.strictEqual(d.points[1].csat_percent, 50);
   assert.strictEqual(d.points[1].warning, 'MAU_CHUA_DU_TIN_CAY');
-  assert.throws(() => service.trend(BGD, { granularity: 'tuan' }), (e) => e.status === 400);
-  assert.throws(() => service.trend(BGD, { year: '1800' }), (e) => e.status === 400);
+  assert.strictEqual(service.trend(BGD, {}).data.filters.year, 2026, 'thiếu năm -> lấy năm hiện tại');
 });
 
 test('UC6: danh sách điểm thấp luôn ép status=DA_TRA_LOI và score_max=2 (BS-03)', () => {
   const { service, goi } = setup({ summary: { total_responses: 0, high_count: 0, low_count: 0, avg_score: null } });
   const kq = service.lowScore(QUAN_LY_1, { limit: 5 });
   assert.strictEqual(goi.list.status, 'DA_TRA_LOI');
-  assert.strictEqual(goi.list.score_max, '2');
+  assert.strictEqual(goi.list.scoreMax, 2);
   assert.strictEqual(kq.meta.low_score_threshold, 2);
 });

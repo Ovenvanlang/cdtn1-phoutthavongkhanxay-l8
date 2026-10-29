@@ -3,7 +3,8 @@
 //   node scripts/chay-luong-end-to-end.js --memory   (CSDL trong bộ nhớ: không đụng dữ liệu thật)
 //
 // Các bước: đăng nhập 4 vai trò -> UC1 tạo khảo sát -> UC2 khách gửi điểm ->
-//           UC3/UC4 báo cáo CSAT -> UC5 xu hướng -> UC6 điểm thấp -> kiểm tra QT-14/QT-15/BS-02.
+//           UC3/UC4 báo cáo CSAT (kèm mốc so sánh) -> UC5 xu hướng -> UC6 điểm thấp -> kiểm tra QT-14/QT-15/BS-02
+//           -> token -> CRUD tài khoản (QT-13, QT-14, TK-01..03).
 // Mỗi bước in ra INPUT và OUTPUT thật để dán vào báo cáo (docs/ket-qua-chay-mau.txt).
 const config = require('../src/backend/config');
 const { openDb } = require('../src/backend/db/connection');
@@ -117,8 +118,16 @@ async function main() {
     `BS-01: CSAT% = ${high}/${d.total_responses} = ${d.csat_percent}%`);
   show('Top KTV', d.by_technician.slice(0, 3).map((t) => `${t.full_name}: ${t.csat_percent}% (${t.total_responses} phản hồi)`));
   expect(Array.isArray(d.by_technician) && d.by_technician.length > 0, `UC4: có bảng theo kỹ thuật viên (${d.by_technician.length} người)`);
-  expect(d.by_technician.some((t) => t.warning === 'MAU_CHUA_DU_TIN_CAY'),
-    'BS-02: kỹ thuật viên có dưới 5 phản hồi được gắn cảnh báo MAU_CHUA_DU_TIN_CAY');
+  expect(d.by_technician.every((t) => (t.total_responses < 5) === (t.warning === 'MAU_CHUA_DU_TIN_CAY')),
+    'BS-02: đúng những kỹ thuật viên có dưới 5 phản hồi bị gắn cảnh báo MAU_CHUA_DU_TIN_CAY');
+  const c = d.comparison;
+  show('Mốc so sánh', { ky_truoc: `${c.previous.from}..${c.previous.to}`, csat_ky_truoc: c.previous.csat_percent,
+                        chenh_lech: c.csat_delta });
+  expect(c.previous.from === '2025-01-01' && c.previous.to === '2025-12-31',
+    'Mốc so sánh: kỳ trước của cả năm 2026 là cả năm 2025 (cùng số ngày, liền trước)');
+  const motTT = await call('GET', '/api/reports/csat?from=2026-01-01&to=2026-12-31&center_id=1', { token: tokens.bgd });
+  expect(motTT.json.data.comparison.company?.csat_percent === d.csat_percent,
+    'BGĐ lọc một trung tâm -> có thêm mốc "toàn hệ thống" bằng đúng CSAT toàn hệ thống');
 
   // ---------------------------------------------------------------- 5. UC5
   title('UC5 – xu hướng CSAT theo quý (Marketing, chỉ số liệu tổng hợp)');
@@ -145,8 +154,8 @@ async function main() {
       `Phản hồi vừa gửi ở bước 3 (${ungVien.ticket_code}) xuất hiện trong danh sách điểm thấp của ban giám đốc`);
   }
   expect(thap.json.data.every((r) => r.center_id === centerQuanLy), `QT-14: chỉ có dữ liệu trung tâm ${centerQuanLy}`);
-  expect(thap.json.data.every((r) => r.customer_phone && !String(r.customer_phone).includes('*')),
-    'QT-15: quản lý thấy số điện thoại đầy đủ (không che bằng dấu *)');
+  expect(thap.json.data.every((r) => !r.customer_phone || /^0\d{9}$/.test(r.customer_phone)),
+    'QT-15: quản lý thấy số điện thoại đầy đủ (không che bằng dấu *); khách nạp từ CSV chưa có số thì để trống');
   const xemTTKhac = await call('GET', '/api/reports/csat?center_id=999', { token: tokens['quanly.tt01'] });
   expect(xemTTKhac.status === 403 && xemTTKhac.json.error === 'KHONG_DU_QUYEN', 'QT-14: quản lý xem trung tâm khác -> 403');
   const mktLowScore = await call('GET', '/api/reports/low-score', { token: tokens.marketing });
@@ -158,10 +167,36 @@ async function main() {
   const rChoc = await call('GET', '/api/reports/csat', { token: choc });
   expect(rChoc.status === 401 && rChoc.json.error === 'TOKEN_KHONG_HOP_LE', 'Token bị sửa chữ ký -> 401 TOKEN_KHONG_HOP_LE');
   const { createAuthService } = require('../src/backend/services/auth.service');
-  const quaHan = createAuthService({ userRepo: { findByUsername: () => undefined }, secret: SECRET, ttlHours: -1 })
+  const quaHan = createAuthService({ userRepo: { findByUsername: () => undefined, findById: () => undefined }, secret: SECRET, ttlHours: -1 })
     .issueToken({ user_id: 1, full_name: 'Ban giám đốc', role: 'bgd', center_id: null }).token;
   const rHan = await call('GET', '/api/reports/csat', { token: quaHan });
   expect(rHan.status === 401 && rHan.json.error === 'TOKEN_KHONG_HOP_LE', 'Token hết hạn -> 401 TOKEN_KHONG_HOP_LE');
+
+  // ---------------------------------------------------------------- 8. CRUD tài khoản
+  title('CRUD tài khoản app_user (Ban giám đốc) – QT-13, QT-14, TK-01..03');
+  const bgd = { token: tokens.bgd };
+  const tenMoi = `ql.thu.${Date.now() % 100000}`;
+  show('INPUT', { username: tenMoi, full_name: 'Quản lý thử', role: 'quan_ly', center_id: 2 });
+  const tao = await call('POST', '/api/users', { ...bgd,
+    body: { username: tenMoi, password: 'QuanLy2026', full_name: 'Quản lý thử', role: 'quan_ly', center_id: 2 } });
+  show('OUTPUT', tao.json.data);
+  expect(tao.status === 201 && tao.json.data.center_id === 2 && !('password_hash' in tao.json.data),
+    'Create -> 201, gắn trung tâm 2, không trả mật khẩu băm');
+  const id = tao.json.data.user_id;
+  const doc = await call('GET', `/api/users/${id}`, bgd);
+  expect(doc.status === 200 && doc.json.data.username === tenMoi, 'Read -> 200');
+  const sua = await call('PATCH', `/api/users/${id}`, { ...bgd, body: { role: 'marketing' } });
+  expect(sua.status === 200 && sua.json.data.role === 'marketing' && sua.json.data.center_id === null,
+    'Update vai trò sang marketing -> tự bỏ trung tâm (QT-14)');
+  const xoa = await call('DELETE', `/api/users/${id}`, bgd);
+  expect(xoa.status === 200 && xoa.json.data.is_active === false, 'Delete -> khóa tài khoản, không xóa dòng (QT-13)');
+  const qlKhongTT = await call('POST', '/api/users', { ...bgd,
+    body: { username: `${tenMoi}.b`, password: 'QuanLy2026', full_name: 'X', role: 'quan_ly' } });
+  expect(qlKhongTT.status === 400 && qlKhongTT.json.field === 'center_id', 'Quản lý không có trung tâm -> 400, field = center_id');
+  const tuKhoa = await call('DELETE', `/api/users/${db.prepare("SELECT user_id FROM app_user WHERE username = 'bgd'").get().user_id}`, bgd);
+  expect(tuKhoa.status === 409 && tuKhoa.json.error === 'KHONG_TU_THAO_TAC', 'BGĐ tự khóa mình -> 409 KHONG_TU_THAO_TAC');
+  const qlGoi = await call('GET', '/api/users', { token: tokens['quanly.tt01'] });
+  expect(qlGoi.status === 403, 'Quản lý trung tâm gọi API tài khoản -> 403');
 
   server.close();
   db.close();

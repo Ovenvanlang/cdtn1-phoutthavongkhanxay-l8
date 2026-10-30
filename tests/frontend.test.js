@@ -4,10 +4,13 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { JSDOM } = require('jsdom');
 
 const FRONTEND = path.join(__dirname, '..', 'src', 'frontend');
-const nhapDataState = () => import(path.join(FRONTEND, 'components', 'DataState.mjs'));
+// import() động cần URL file:// – đường dẫn tuyệt đối kiểu C:\... trên Windows sẽ bị Node từ chối (ERR_UNSUPPORTED_ESM_URL_SCHEME)
+const nhapModule = (...phan) => import(pathToFileURL(path.join(FRONTEND, ...phan)).href);
+const nhapDataState = () => nhapModule('components', 'DataState.mjs');
 
 function oTrong() {
   const dom = new JSDOM('<div id="vung"></div>');
@@ -98,7 +101,7 @@ test('DataState: hai kiểu rỗng – "chưa có dữ liệu" không có nút; 
 });
 
 test('Định dạng mốc so sánh: chênh lệch có dấu và mũi tên, thiếu số thì "—"', async () => {
-  const { chenhLech } = await import(path.join(FRONTEND, 'components', 'dinh-dang.mjs'));
+  const { chenhLech } = await nhapModule('components', 'dinh-dang.mjs');
   assert.strictEqual(chenhLech(3.4), '▲ +3,4 điểm');
   assert.strictEqual(chenhLech(-2), '▼ −2,0 điểm');
   assert.strictEqual(chenhLech(0), '= 0,0 điểm');

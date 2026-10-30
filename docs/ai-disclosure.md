@@ -19,4 +19,4 @@ bắt buộc khai báo cụ thể và hiểu mọi dòng nộp. Phần có AI h�
 
 Tôi xác nhận đã đọc, hiểu và chịu trách nhiệm về toàn bộ nội dung nộp, kể cả phần có AI hỗ trợ.  
 **Họ tên:** PHOUTTHAVONG KHANXAY – 237480201IS10  
-**Ngày:** ……/……/2026
+

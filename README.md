@@ -9,7 +9,7 @@ Quản lý xem được danh sách phản hồi điểm thấp để gọi lại
 Ban giám đốc quản lý tài khoản nội bộ.
 
 Tài liệu: `docs/srs.md` (SRS) · `docs/thay-doi-thiet-ke.md` (nhật ký thay đổi so với BT1, TD-01 → TD-29) · `docs/architecture-thuc-te.png`
-(kiến trúc đã hiện thực) · `docs/erd-thuc-te.png` · `docs/anh-xa-kien-truc.md` · `docs/anh-man-hinh.md` · `docs/ket-qua-chay-mau.txt` · `docs/ai-disclosure.md`.
+(kiến trúc đã hiện thực) · `docs/erd-thuc-te.png` · `docs/anh-xa-kien-truc.md` · `docs/anh-man-hinh.md` · `docs/ket-qua-chay-mau.txt` · `docs/bug-log.md` · `docs/ai-disclosure.md`.
 
 ## 2. Yêu cầu môi trường
 - **Node.js 22.13 trở lên** (đã thử với 22.23; image Docker dùng 22.20), npm 10 – kiểm tra: `node -v`

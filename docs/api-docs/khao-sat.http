@@ -1,0 +1,202 @@
+### CSAT survey API – manual request collection (VS Code "REST Client" or JetBrains HTTP Client)
+### Prerequisite: system running (README / docs/deployment-guide.md), demo password = DEMO_PASSWORD in .env (default Demo@2026).
+### Run the requests top to bottom: later requests reuse values captured from earlier responses.
+
+@base = http://localhost:3000
+@password = Demo@2026
+
+### 1. Health check -> 200 {"status":"ok"}
+GET {{base}}/health
+
+### 2. Log in as each role (tokens are captured by name)
+# @name loginBgd
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"username":"bgd","password":"{{password}}"}
+
+###
+# @name loginQuanLy
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"username":"quanly.tt01","password":"{{password}}"}
+
+###
+# @name loginMarketing
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"username":"marketing","password":"{{password}}"}
+
+###
+# @name loginHeThong
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"username":"hethong","password":"{{password}}"}
+
+###
+@bgd = {{loginBgd.response.body.data.token}}
+@ql = {{loginQuanLy.response.body.data.token}}
+@mkt = {{loginMarketing.response.body.data.token}}
+@sys = {{loginHeThong.response.body.data.token}}
+
+### 2b. Wrong password -> 401 SAI_TAI_KHOAN_HOAC_MAT_KHAU
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{"username":"bgd","password":"sai-mat-khau"}
+
+### 3. Current session -> 200
+GET {{base}}/api/auth/me
+Authorization: Bearer {{ql}}
+
+### 3b. No token -> 401 CHUA_DANG_NHAP
+GET {{base}}/api/auth/me
+
+### 4. UC1 – system actor creates the survey of a CLOSED ticket without survey
+### (with the seed data, ticket 8 is closed and has no survey; after the first run pick another one,
+###  e.g. from: SELECT t.ticket_id FROM ticket t LEFT JOIN survey_response s USING(ticket_id) WHERE t.status='DA_DONG' AND s.response_id IS NULL)
+@ticket = 8
+# @name taoKhaoSat
+POST {{base}}/api/surveys
+Authorization: Bearer {{sys}}
+Content-Type: application/json
+
+{"ticket_id": {{ticket}}}
+
+###
+# the access code is the "t" parameter of survey_link, e.g. /khao-sat.html?ticket=8&t=9dad…851a – paste it here:
+@t = PASTE_THE_32_HEX_CODE_FROM_survey_link
+
+### 4b. Same ticket again -> 409 DA_KHAO_SAT (QT-10)
+POST {{base}}/api/surveys
+Authorization: Bearer {{sys}}
+Content-Type: application/json
+
+{"ticket_id": {{ticket}}}
+
+### 4c. Wrong role -> 403 KHONG_DU_QUYEN
+POST {{base}}/api/surveys
+Authorization: Bearer {{mkt}}
+Content-Type: application/json
+
+{"ticket_id": {{ticket}}}
+
+### 5. UC2 – customer opens the link (no login, needs t) -> 200
+GET {{base}}/api/surveys/{{ticket}}?t={{t}}
+
+### 5b. A01 check (TC-10 by hand): ticket id only, no code -> 400 field t
+POST {{base}}/api/surveys/{{ticket}}
+Content-Type: application/json
+
+{"score":1,"comment":"đánh giá giả"}
+
+### 5c. A01 check: guessed code -> 404 KHONG_TIM_THAY, survey unchanged
+POST {{base}}/api/surveys/{{ticket}}?t=00000000000000000000000000000000
+Content-Type: application/json
+
+{"score":1,"comment":"đánh giá giả"}
+
+### 6. Invalid score -> 400 field score
+POST {{base}}/api/surveys/{{ticket}}?t={{t}}
+Content-Type: application/json
+
+{"score":6}
+
+### 7. UC2 – customer submits -> 200 DA_TRA_LOI, low_score true
+POST {{base}}/api/surveys/{{ticket}}?t={{t}}
+Content-Type: application/json
+
+{"score":2,"comment":"Sửa lâu, hẹn hai lần mới xong"}
+
+### 7b. Second answer -> 409 DA_KHAO_SAT, first answer kept
+POST {{base}}/api/surveys/{{ticket}}?t={{t}}
+Content-Type: application/json
+
+{"score":5}
+
+### 8. Staff list – manager sees only centre 1, low scores
+GET {{base}}/api/surveys?score_max=2&limit=5
+Authorization: Bearer {{ql}}
+
+### 8b. Manager asks for another centre -> 403 (QT-14)
+GET {{base}}/api/surveys?center_id=2
+Authorization: Bearer {{ql}}
+
+### 9. UC3/UC4 – CSAT report (board, whole company, default period = this year to today)
+GET {{base}}/api/reports/csat
+Authorization: Bearer {{bgd}}
+
+### 9b. CSAT for one centre and one month (adds whole-company baseline)
+GET {{base}}/api/reports/csat?center_id=1&from=2026-10-01&to=2026-10-31
+Authorization: Bearer {{bgd}}
+
+### 9c. Marketing with center_id -> 403 (BS-05)
+GET {{base}}/api/reports/csat?center_id=1
+Authorization: Bearer {{mkt}}
+
+### 9d. Impossible date -> 400 field from
+GET {{base}}/api/reports/csat?from=2026-02-30
+Authorization: Bearer {{bgd}}
+
+### 10. UC5 – trend by quarter
+GET {{base}}/api/reports/trend?granularity=quarter&year=2026
+Authorization: Bearer {{ql}}
+
+### 11. UC6 – low-score list
+GET {{base}}/api/reports/low-score?limit=5
+Authorization: Bearer {{ql}}
+
+### 12. Centres for the filter
+GET {{base}}/api/centers
+Authorization: Bearer {{bgd}}
+
+### 13. Soft delete the survey created above (QT-13) -> 200; repeat -> 404
+DELETE {{base}}/api/surveys/{{ticket}}
+Authorization: Bearer {{ql}}
+
+### 14. Accounts – list managers
+GET {{base}}/api/users?role=quan_ly
+Authorization: Bearer {{bgd}}
+
+### 15. Create a manager for centre 2 -> 201 (repeat -> 409 TEN_DANG_NHAP_DA_TON_TAI)
+# @name taoTaiKhoan
+POST {{base}}/api/users
+Authorization: Bearer {{bgd}}
+Content-Type: application/json
+
+{"username":"quanly.tt02","password":"QuanLy2026","full_name":"Quản lý Tân Bình","role":"quan_ly","center_id":2}
+
+###
+@userId = {{taoTaiKhoan.response.body.data.user_id}}
+
+### 15b. Manager without centre -> 400 field center_id
+POST {{base}}/api/users
+Authorization: Bearer {{bgd}}
+Content-Type: application/json
+
+{"username":"quanly.tt03","password":"QuanLy2026","full_name":"X","role":"quan_ly"}
+
+### 15c. Malformed JSON -> 400 (not 500)
+POST {{base}}/api/users
+Authorization: Bearer {{bgd}}
+Content-Type: application/json
+
+{"username":"x", "password":
+
+### 16. Read / update the new account
+GET {{base}}/api/users/{{userId}}
+Authorization: Bearer {{bgd}}
+
+###
+PATCH {{base}}/api/users/{{userId}}
+Authorization: Bearer {{bgd}}
+Content-Type: application/json
+
+{"full_name":"Quản lý TTBH Tân Bình"}
+
+### 17. Deactivate (soft delete) -> 200 is_active false
+DELETE {{base}}/api/users/{{userId}}
+Authorization: Bearer {{bgd}}

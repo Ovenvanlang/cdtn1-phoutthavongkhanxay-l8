@@ -1,7 +1,26 @@
 # Bug Log – Luồng L8 Khảo sát hài lòng CSAT
 
-Mẫu 7 dòng theo `07_implementation/68_integration_debugging_and_config.md` §4. Mức độ: **Critical** (không dùng được / dữ liệu sai / lỗ hổng),
+Mẫu 7 dòng theo `07_implementation/68_integration_debugging_and_config.md` §4 và `69_testing_qa_principles.md` §5. Mức độ: **Critical** (không dùng được / dữ liệu sai / lỗ hổng),
 **Major** (chức năng quan trọng sai nhưng có cách khác), **Minor** (trải nghiệm/trình bày). Chỉ ghi lỗi đã thực sự gỡ, mỗi lỗi có commit sửa.
+Phân loại theo cây quyết định của buổi 13: (1) không dùng được / dữ liệu sai / lộ dữ liệu – lỗ hổng → Critical; nếu không,
+(2) một chức năng quan trọng sai → Major; còn lại → Minor.
+
+| Mã | Mức | Tóm tắt | Phát hiện bởi | Commit sửa |
+|---|---|---|---|---|
+| BUG-001 | Major | `npm test` lỗi 7 test trên Windows | phép thử thư mục trống (BT2) | `feb0d9d` |
+| BUG-002 | Critical | Nhập CSV chính thức bị vỡ, KTV bị đánh dấu nghỉ | rà soát BT2 | `4d42ba8` (chung với BUG-003 – xem ghi chú) |
+| BUG-003 | Major | Nạp CSV lần 2 lỗi khóa ngoại | rà soát BT2 | `4d42ba8` |
+| BUG-004 | Major | Báo cáo CSAT mở lần đầu luôn trống | rà soát BT2 | `a91fc0b`, `b10115a` |
+| BUG-005 | Minor | Trang giao diện cũ vẫn mở được | rà soát BT2 | `eac16ec` |
+| **BUG-006** | **Critical** | Người lạ đoán số phiếu là gửi điểm thay khách (A01) | **TC-10** | `377c641` |
+| **BUG-007** | **Major** | Phản hồi 00:00–06:59 giờ VN bị tính sang ngày/tháng trước | **TC-11** | `5520988` |
+| **BUG-008** | **Critical** | body-parser 2.3.0 có lỗ hổng DoS đã công bố | checklist bảo mật mục 7 (`npm audit`) | `7ce09b2` |
+| **BUG-009** | **Minor** | Mọi phản hồi để lộ `X-Powered-By: Express` | checklist bảo mật mục 5 (`curl -i`) | `f474165` |
+
+> **Ghi chú trung thực về BUG-002 và BUG-003:** hai lỗi này được sửa chung trong commit `4d42ba8` (29/10/2026, BT2) – trước khi
+> áp dụng quy tắc "mỗi bug một commit `fix(...) (BUG-xx)`" của buổi 13–14. Em không viết lại lịch sử Git đã nộp ở tag `v0.2`
+> để tách commit, nên hai mục dùng chung một link. Từ BUG-006 trở đi mỗi lỗi có đúng một commit riêng; trước mỗi bản sửa có
+> test case FAIL chứng minh lỗi (commit `8ab0d75`: 10 PASS / 2 FAIL).
 
 ## BUG-001 · Major — `npm test` thất bại 7 test khi chạy trên Windows
 | Dòng | Nội dung |
@@ -57,3 +76,47 @@ Mẫu 7 dòng theo `07_implementation/68_integration_debugging_and_config.md` §
 | 5. Nguyên nhân | Tệp của bản giao diện trước (gửi header `X-Role` mô phỏng, tải Chart.js qua CDN) không được xóa khi làm lại giao diện theo wireframe (TD-14, TD-18); Express phục vụ mọi tệp trong `src/frontend/` |
 | 6. Cách sửa | Xóa 3 trang cũ, `api/client.js`, `api/survey.api.js`, `css/style.css`; chỉ còn một lớp gọi API `api/client.mjs` (TD-22) |
 | 7. Commit và xác nhận | https://github.com/Ovenvanlang/cdtn1-phoutthavongkhanxay-l8/commit/eac16ec3ee6987f225c852e2de5ba3aea85bd445 · `/dashboard.html` trả 404; test "không trang nào trong pages/ gọi fetch( trực tiếp" PASS |
+
+## BUG-006 · Critical — Người lạ đoán số phiếu là gửi điểm thay khách hàng (OWASP A01)
+| Dòng | Nội dung |
+|---|---|
+| 1. Mã và mức độ | BUG-006 · Critical – lỗ hổng kiểm soát truy cập (A01 Broken Access Control), dữ liệu bị thay đổi thật: điểm giả đi thẳng vào CSAT của trung tâm/KTV và khóa luôn khảo sát (QT-10) nên khách thật không trả lời được nữa |
+| 2. Phát hiện bởi | **TC-10** (bảo mật – quyền truy cập theo chủ sở hữu), lần chạy 07/11/2026 ở commit `8ab0d75` – ảnh `docs/screenshots/TC-10-truoc-sua.png` |
+| 3. Triệu chứng | `POST /api/surveys/2` **không đăng nhập, không mã gì** với `{"score":1,"comment":"đánh giá giả"}` → **HTTP 200**, CSDL: phiếu 2 chuyển `DA_TRA_LOI`, `score = 1`. Khách thật bấm đường dẫn sau đó nhận 409 `DA_KHAO_SAT` |
+| 4. Cách tái lập | Ở commit `8ab0d75`: `npm run tc -- TC-10`; hoặc `npm run db:setup && npm start`, lấy một `ticket_id` bất kỳ đang `DA_GUI` (là số tăng dần 1, 2, 3…) rồi `curl -X POST -H "Content-Type: application/json" -d '{"score":1}' localhost:3000/api/surveys/<id>` |
+| 5. Nguyên nhân | Đường dẫn khảo sát gửi cho khách chỉ có `khao-sat.html?ticket=<ticket_id>` (thiết kế BT1/BT2) và `ticket_id` là khóa tự tăng nên ai cũng đoán được. Route `POST/GET /api/surveys/:ticketId` để công khai (Access Middleware coi người không có token là "khách hàng"), còn `surveyService.submit(ticketId, body)` chỉ kiểm khảo sát tồn tại và đang `DA_GUI` – **không có dữ liệu nào chứng minh người gọi chính là khách nhận đường dẫn**, nên không thể kiểm "chủ sở hữu" |
+| 6. Cách sửa | Migration `005_survey_access_token.sql`: cột `access_token` 128 bit ngẫu nhiên (`randomblob(16)`), sinh bù cho dữ liệu cũ, `UNIQUE` index và trigger tự sinh cho mọi khảo sát mới (API, seed, nạp CSV). Validator `accessToken` (32 ký tự hex, thiếu → 400 `field: t`); service `openForCustomer` so mã bằng `safeEqual` (thời gian hằng), sai mã/đã xóa → 404 `KHONG_TIM_THAY` giống khảo sát không tồn tại. UC1 trả `survey_link` `/khao-sat.html?ticket=<id>&t=<mã>`; trang `khao-sat` đọc `t`. Cập nhật mọi chỗ gọi: `survey.api.test.js`, `survey.service.test.js`, `scripts/chay-luong-end-to-end.js` (TD-30) |
+| 7. Commit và xác nhận | https://github.com/Ovenvanlang/cdtn1-phoutthavongkhanxay-l8/commit/377c6415c7c9ee9be651714048cefce548747f97 · chạy lại TC-10: không mã → 400 `DU_LIEU_KHONG_HOP_LE` (field `t`), mã đoán `000…0` → 404 `KHONG_TIM_THAY`, CSDL vẫn `DA_GUI`/`score = null` → **PASS**. Chống hỏng luồng đúng: TC-10 bước 3 (commit `18db0de`) và TC-02 – khách thật mở đúng đường dẫn vẫn gửi được → 200 **PASS**; thêm test "BUG-006: … không có mã → 400; sai mã → 404" |
+
+## BUG-007 · Major — Phản hồi từ 00:00 đến 06:59 giờ Việt Nam bị tính sang ngày (và tháng) trước
+| Dòng | Nội dung |
+|---|---|
+| 1. Mã và mức độ | BUG-007 · Major – báo cáo xu hướng theo tháng/quý (UC5) và lọc theo ngày (UC3) xếp sai một phần phản hồi ở ranh giới ngày. Không phải Critical: thời điểm gốc `responded_at` vẫn lưu đúng, tổng và CSAT của cả năm không đổi, và tính lại được (đã làm ở migration 006); chức năng sai ở biên, xem được bằng cách khác (danh sách phản hồi có giờ trả lời) |
+| 2. Phát hiện bởi | **TC-11** (giá trị biên 23:59 ngày 31/10 và 00:30 ngày 01/11 giờ VN), lần chạy 07/11/2026 ở commit `8ab0d75` – ảnh `docs/screenshots/TC-11-truoc-sua.png` |
+| 3. Triệu chứng | Phản hồi lúc 00:30 ngày 01/11 (giờ VN) có `responded_date = 2026-10-31`; báo cáo xu hướng 2026 trả `{"10": 2}` thay vì tháng 10 = 1, tháng 11 = 1 |
+| 4. Cách tái lập | Ở commit `377c641`: `npm run tc -- TC-11` (đồng hồ hệ thống giả lập `2026-10-31T17:30:00Z` = 00:30 01/11 giờ VN rồi gửi phản hồi, đọc lại `survey_response.responded_date` và `GET /api/reports/trend?year=2026`) |
+| 5. Nguyên nhân | `survey.repository.submitTx` lấy ngày bằng `respondedAt.slice(0, 10)` và `getUTCMonth()` trên chuỗi ISO **UTC**; Việt Nam là UTC+7 nên mọi phản hồi trước 07:00 sáng giờ VN rơi vào ngày UTC hôm trước. Cùng lỗi ở `report.service` (`yearToDateRange` dùng `toISOString()` làm "hôm nay", năm mặc định dùng `getUTCFullYear()`) và seed. Test cũ dùng giờ 08:00 UTC (15:00 VN) nên không chạm ranh giới |
+| 6. Cách sửa | `utils/local-date.js` (`localDateParts`, `localDate`) dùng `Intl.DateTimeFormat` theo biến `APP_TIMEZONE` (mặc định `Asia/Ho_Chi_Minh`, sai tên thì dừng khi khởi động); áp dụng ở `submitTx`, `yearToDateRange`, năm mặc định của UC5 và seed. Migration `006_responded_date_vn.sql` tính lại `responded_date` (+7 giờ) cho dữ liệu cũ ghi theo UTC, bổ sung `dim_date` còn thiếu; dòng CSV giờ địa phương giữ nguyên (TD-31) |
+| 7. Commit và xác nhận | https://github.com/Ovenvanlang/cdtn1-phoutthavongkhanxay-l8/commit/55209881386c56c0aea39e70bf248984158966c8 · chạy lại TC-11: `responded_date` = 2026-10-31 và 2026-11-01, xu hướng tháng 10 = 1, tháng 11 = 1 → **PASS**; thêm `tests/local-date.test.js` (00:30 01/11, 23:59 31/10, giao thừa 18:00 UTC 31/12 = 01/01 năm sau, migration 006 chạy 2 lần) |
+
+## BUG-008 · Critical — Phụ thuộc `body-parser` 2.3.0 có lỗ hổng từ chối dịch vụ đã công bố
+| Dòng | Nội dung |
+|---|---|
+| 1. Mã và mức độ | BUG-008 · Critical – lỗ hổng bảo mật (OWASP A03 Software Supply Chain Failures) mức **high** theo GitHub Advisory: một request nén được dựng sẵn có thể làm máy chủ ngừng phục vụ. Ứng dụng nhận JSON qua `express.json()` (mặc định chấp nhận thân nén gzip/deflate) trên cả API công khai của khách nên bị ảnh hưởng thật |
+| 2. Phát hiện bởi | Điền checklist bảo mật mục 7 (phụ thuộc + cảnh báo lỗ hổng), 07/11/2026: `npm audit` |
+| 3. Triệu chứng | `npm audit` → `body-parser 2.0.0 - 2.3.0 · Severity: high · body-parser vulnerable to Denial of Service via trailing bytes after a compressed request body – GHSA-27r3-jxmh-p828 · 1 high severity vulnerability` |
+| 4. Cách tái lập | Ở commit `5520988`: `npm ci` rồi `npm audit` (hoặc `grep -A1 '"node_modules/body-parser"' package-lock.json` → `"version": "2.3.0"`) |
+| 5. Nguyên nhân | `package-lock.json` ghim `body-parser@2.3.0` (phụ thuộc gián tiếp của `express@5`) từ lúc cài ở BT2; lỗ hổng được công bố sau đó và quy trình chưa có bước `npm audit` trước khi nộp nên không ai cập nhật |
+| 6. Cách sửa | `npm audit fix` → `body-parser@2.4.0` (bản vá, cùng major nên không đổi API); chỉ `package-lock.json` thay đổi. Thêm bước `npm audit --audit-level=high` vào CI (`.github/workflows/ci.yml`) để lỗ hổng mới làm đỏ build (TD-32) |
+| 7. Commit và xác nhận | https://github.com/Ovenvanlang/cdtn1-phoutthavongkhanxay-l8/commit/7ce09b2ca7393bc2188c3ec73c44beefd9806fb1 · `npm audit` → `found 0 vulnerabilities`; `npm test` 86/86 PASS ở commit này |
+
+## BUG-009 · Minor — Mọi phản hồi để lộ header `X-Powered-By: Express`
+| Dòng | Nội dung |
+|---|---|
+| 1. Mã và mức độ | BUG-009 · Minor – không lộ dữ liệu nghiệp vụ hay dữ liệu cá nhân, không khai thác trực tiếp được; chỉ cho người dò quét biết công nghệ máy chủ để tra lỗ hổng theo phiên bản (OWASP A02 Security Misconfiguration) |
+| 2. Phát hiện bởi | Điền checklist bảo mật mục 5 (thông báo lỗi không lộ cấu trúc bên trong), 07/11/2026: gọi endpoint gây lỗi và đọc **toàn bộ** phản hồi bằng `curl -i` |
+| 3. Triệu chứng | `curl -i localhost:3000/api/khong-co` → thân lỗi sạch (`{"error":"KHONG_TIM_THAY",…}`, không stack trace) nhưng header có `X-Powered-By: Express`; tương tự ở `/health`, 401, 400 |
+| 4. Cách tái lập | Ở commit `7ce09b2`: `npm start` rồi `curl -si localhost:3000/health | grep -i x-powered-by` |
+| 5. Nguyên nhân | Express bật header `X-Powered-By` theo mặc định; `createApp` trong `src/backend/app.js` chưa tắt (chỉ mới lo phần thân phản hồi lỗi trong `error-handler.js`) |
+| 6. Cách sửa | `app.disable('x-powered-by')` ngay sau khi tạo app, trước mọi middleware, nên áp dụng cho cả tệp tĩnh và lỗi 404 |
+| 7. Commit và xác nhận | https://github.com/Ovenvanlang/cdtn1-phoutthavongkhanxay-l8/commit/f4741652a264e46d52e035f48ed6f1057a153ec1 · test "BUG-009: phản hồi không để lộ công nghệ máy chủ qua header X-Powered-By" kiểm 3 loại phản hồi (200, 401, 404) → PASS; `curl -si localhost:3000/health` không còn dòng `X-Powered-By` |

@@ -84,7 +84,7 @@ test('TC-02 [Luồng đúng · UC2, BS-03] khách mở đúng đường dẫn v�
   assert.deepStrictEqual({ ...dong }, { status: 'DA_TRA_LOI', score: 2, comment: 'Trả máy trễ hẹn 3 ngày' });
 });
 
-test('TC-03 [Luồng đúng · BS-01, BS-06] CSAT = 15/20 = 75,0% và so với kỳ trước 6/10 = 60,0% -> chênh +15,0 điểm', () => {
+test('TC-03 [Luồng đúng · BS-01, BS-06] CSAT = 15/20 = 75,0% và so với kỳ trước 6/10 = 60,0% -> chênh +15,0 điểm', (t) => {
   const tong = { total_responses: 20, high_count: 15, low_count: 2, avg_score: 4 };
   const kyTruoc = { total_responses: 10, high_count: 6, low_count: 3, avg_score: 3.6 };
   const goi = [];
@@ -95,6 +95,7 @@ test('TC-03 [Luồng đúng · BS-01, BS-06] CSAT = 15/20 = 75,0% và so với k
   const svc = createReportService({ reportRepo, centerRepo: { findById: () => ({ center_id: 1 }) },
     surveyService: {}, now: () => new Date('2026-10-10T08:00:00Z') });
   const d = svc.csat({ role: 'bgd' }, { from: '2026-10-01', to: '2026-10-10' }).data;
+  t.diagnostic(`csat_percent=${d.csat_percent} · kỳ trước ${goi[1].from}..${goi[1].to}: csat_percent=${d.comparison.previous.csat_percent} · csat_delta=${d.comparison.csat_delta}`);
   assert.strictEqual(d.csat_percent, 75);
   assert.deepStrictEqual({ from: goi[1].from, to: goi[1].to }, { from: '2026-09-21', to: '2026-09-30' });
   assert.strictEqual(d.comparison.previous.csat_percent, 60);

@@ -21,8 +21,9 @@ kiểm soát truy cập (OWASP A01) · chạy lại migration/seed/nạp CSV.
 | Integration (migration + seed + nạp CSV trên CSDL tệp thật) | 1 | TC-12 | `node:test` |
 | API / hệ thống (Express thật + SQLite trong bộ nhớ, gọi HTTP) | 8 | TC-01, 02, 04, 05, 08, 09, 10, 11 | `node:test` + `fetch` |
 
-Ngoài 12 TC trong Test Report còn **bộ hồi quy tự động 69 test** (`tests/*.test.js`) chạy cùng lệnh `npm test`;
-mỗi bug đã sửa có ít nhất 1 test hồi quy (`docs/bug-log.md`, dòng 7).
+Ngoài 12 TC trong Test Report còn **bộ hồi quy tự động** (`tests/*.test.js`) chạy cùng lệnh `npm test`: 69 test lúc lập kế hoạch,
+**75 test sau khi sửa BUG-006…009** (mỗi bug thêm test hồi quy riêng) → `npm test` chạy tổng cộng **87 test**.
+Mỗi bug đã sửa có ít nhất 1 test hồi quy (`docs/bug-log.md`, dòng 7).
 
 **Đủ 5 loại BT3:** luồng đúng ×5 (TC-01 → TC-05) · giá trị biên ×3 (TC-06/TC-07 hai bên ranh giới 5 phản hồi của BS-02; TC-11 ranh giới nửa đêm giờ Việt Nam) ·
 dữ liệu sai ×2 (TC-08, TC-09 – kiểm cả mã trạng thái, thông báo và tác dụng phụ) · bảo mật ×1 (TC-10, A01) · tái lập ×1 (TC-12).

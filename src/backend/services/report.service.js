@@ -11,6 +11,7 @@
 //   Mốc so sánh: mỗi con số CSAT đi kèm kỳ trước cùng độ dài (và toàn hệ thống khi BGĐ lọc một trung tâm);
 //          xu hướng kèm CSAT trung bình cả năm.
 const E = require('../errors/AppError');
+const { localDateParts } = require('../utils/local-date');
 
 const MIN_SAMPLE = 5;      // BS-02
 const HIGH_SCORE = 4;      // BS-01
@@ -34,9 +35,10 @@ function warningFor(total) {
 
 const DAY_MS = 86400000;
 
-/** Khoảng mặc định: từ đầu năm đến hôm nay (TD-27). */
+/** Khoảng mặc định: từ đầu năm đến hôm nay theo giờ Việt Nam (TD-27, BUG-007). */
 function yearToDateRange(today) {
-  return { from: `${today.getUTCFullYear()}-01-01`, to: today.toISOString().slice(0, 10) };
+  const d = localDateParts(today);
+  return { from: `${d.year}-01-01`, to: d.date_id };
 }
 
 /** Kỳ trước để so sánh: cùng số ngày, liền ngay trước `from` (ví dụ 01/01–29/10 -> 05/03–31/12 năm trước). */
@@ -158,7 +160,7 @@ function createReportService({ reportRepo, centerRepo, surveyService, now = () =
     /** UC5 – xu hướng CSAT theo tháng/quý của một năm. Kỳ không có phản hồi KHÔNG được nội suy. */
     trend(user, { centerId: requested = null, granularity = 'month', year: yearIn = null } = {}) {
       const centerId = resolveCenter(user, requested);
-      const year = yearIn ?? now().getUTCFullYear();
+      const year = yearIn ?? localDateParts(now()).year;
 
       const rows = reportRepo.trend({ granularity, year, centerId });
       // Mốc tham chiếu cho biểu đồ: CSAT trung bình cả năm (vẽ đường đứt nét)

@@ -11,6 +11,7 @@
 const SEED = 42;
 
 const { hashPassword } = require('../src/backend/utils/password');
+const { localDate } = require('../src/backend/utils/local-date');
 const { createUserRepository } = require('../src/backend/repositories/user.repository');
 
 const CENTERS = [                                     // [tên, thành phố, số KTV] – tổng 38 KTV
@@ -143,7 +144,7 @@ function seed(db, { seedValue = SEED, reset = false } = {}) {
       const respondedAt = new Date(closedAt.getTime() + between(24 * 60, 5 * 24 * 60) * 60000);   // sau 1–5 ngày
       const comment = rnd() < COMMENT_RATE ? pick(COMMENTS[score]) : null;
       insSurvey.run(ticketId, 'DA_TRA_LOI', closedAt.toISOString(), score, comment,
-        respondedAt.toISOString(), respondedAt.toISOString().slice(0, 10));
+        respondedAt.toISOString(), localDate(respondedAt));              // ngày theo giờ VN (BUG-007)
       stats.answered++;
     });
     return stats;

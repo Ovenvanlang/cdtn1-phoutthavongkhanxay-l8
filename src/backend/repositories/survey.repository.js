@@ -1,5 +1,7 @@
 // Lớp repository: CHỈ chứa SQL (câu lệnh tham số hóa, không nối chuỗi từ dữ liệu người dùng).
 // Form công khai: chỉ thông tin phiếu, KHÔNG có thông tin khách hàng.
+const { localDateParts } = require('../utils/local-date');
+
 const PUBLIC_SELECT = `
   SELECT s.response_id, s.ticket_id, t.ticket_code, t.center_id, sc.center_name, t.closed_at,
          s.status, s.sent_at, s.score, s.comment, s.responded_at
@@ -35,11 +37,10 @@ function createSurveyRepository(db) {
     'UPDATE survey_response SET is_deleted = 1 WHERE ticket_id = ? AND is_deleted = 0');
 
   const submitTx = db.transaction((ticketId, score, comment, respondedAt) => {
-    const d = new Date(respondedAt);
-    const dateId = respondedAt.slice(0, 10);
-    const m = d.getUTCMonth() + 1;
-    ensureDate.run(dateId, d.getUTCDate(), m, Math.ceil(m / 3), d.getUTCFullYear());
-    return submit.run(score, comment, respondedAt, dateId, ticketId).changes;
+    // responded_at lưu ISO UTC; responded_date là NGÀY THEO GIỜ VIỆT NAM để báo cáo theo ngày/tháng đúng (BUG-007)
+    const d = localDateParts(respondedAt);
+    ensureDate.run(d.date_id, d.day, d.month, d.quarter, d.year);
+    return submit.run(score, comment, respondedAt, d.date_id, ticketId).changes;
   });
 
   return {

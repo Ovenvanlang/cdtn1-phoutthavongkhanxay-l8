@@ -7,6 +7,16 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
+# ---------- GIAI ĐOẠN TEST (tùy chọn): chạy toàn bộ npm test trên máy CHỈ có Docker ----------
+#   docker compose --profile test run --rm test
+# Không ảnh hưởng ảnh chạy: giai đoạn cuối (runtime) chỉ chép những thư mục cần thiết.
+FROM node:22.20-alpine AS test
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+CMD ["npm", "test"]
+
 # ---------- GIAI ĐOẠN 2: ảnh chạy ----------
 FROM node:22.20-alpine AS runtime
 WORKDIR /app

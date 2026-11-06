@@ -1,0 +1,42 @@
+# CI: mỗi lần push / mở pull request lên main -> cài đúng phiên bản khóa trong package-lock.json,
+# chạy toàn bộ test (12 test case BT3 + bộ hồi quy) và kiểm lỗ hổng phụ thuộc (checklist bảo mật mục 7, BUG-008).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.20.0'     # node:sqlite cần Node >= 22.13 (TD-12); trùng phiên bản ảnh Docker
+          cache: npm
+
+      - name: Cài phụ thuộc theo package-lock.json
+        run: npm ci
+
+      - name: npm test (12 test case + hồi quy)
+        run: npm test
+
+      - name: Chạy lại migration + seed lần 2 không lỗi, không nhân đôi (C8)
+        env:
+          DATABASE_FILE: ./data/ci.db
+          DEMO_PASSWORD: Ci-Demo-2026
+        run: |
+          npm run db:setup
+          npm run db:setup
+
+      - name: Kiểm lỗ hổng phụ thuộc (mức high trở lên làm đỏ build)
+        run: npm audit --audit-level=high

@@ -17,5 +17,13 @@ services:
       - csat_data:/app/data
     restart: unless-stopped
 
+  # Chạy bộ test trong container (không cần cài Node trên máy): docker compose --profile test run --rm test
+  # Thuộc profile "test" nên `docker compose up` KHÔNG khởi động dịch vụ này.
+  test:
+    profiles: ["test"]
+    build:
+      context: .
+      target: test
+
 volumes:
   csat_data:

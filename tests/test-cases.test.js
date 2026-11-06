@@ -184,6 +184,12 @@ test('TC-10 [Bảo mật · A01] người lạ đoán ticket_id rồi gửi đi�
   assert.ok([400, 404].includes(khongMa.status), `không có mã phải bị từ chối, nhận ${khongMa.status}`);
   assert.strictEqual(maDoan.status, 404);
   assert.deepStrictEqual({ ...dong }, { status: 'DA_GUI', score: null });
+
+  // Bước 3 (sau BUG-006): bản sửa KHÔNG được làm hỏng luồng đúng – khách thật mở đúng đường dẫn vẫn gửi được
+  const khachThat = await call('POST', `/api/surveys/2?t=${lienKet(db, 2)}`, { body: { score: 4 } });
+  t.diagnostic(`khách thật đúng mã -> HTTP ${khachThat.status} ${khachThat.json.data?.status} score=${khachThat.json.data?.score}`);
+  assert.strictEqual(khachThat.status, 200);
+  assert.strictEqual(khachThat.json.data.score, 4);
 });
 
 // ---------------------------------------------------------------- 2b. BIÊN NGÀY THEO GIỜ VIỆT NAM (UC5 gom theo tháng)

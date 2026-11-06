@@ -15,7 +15,8 @@
     "db:setup": "node --disable-warning=ExperimentalWarning src/backend/db/migrate.js && node --disable-warning=ExperimentalWarning seeds/seed.js",
     "test": "node --disable-warning=ExperimentalWarning --test",
     "import": "node --disable-warning=ExperimentalWarning src/backend/db/import-csv.js",
-    "chay-luong": "node --disable-warning=ExperimentalWarning scripts/chay-luong-end-to-end.js"
+    "chay-luong": "node --disable-warning=ExperimentalWarning scripts/chay-luong-end-to-end.js",
+    "tc": "node scripts/chay-tc.js"
   },
   "license": "UNLICENSED",
   "dependencies": {

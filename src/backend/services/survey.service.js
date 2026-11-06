@@ -2,12 +2,27 @@
 // Không chứa SQL, không biết gì về HTTP. Dữ liệu vào ĐÃ được validators/survey.validator.js
 // kiểm định dạng; ở đây chỉ còn các điều kiện phải tra dữ liệu mới biết (tầng validation 2).
 const E = require('../errors/AppError');
+const { safeEqual } = require('../utils/password');
 
 const LOW_SCORE = 2; // BS-03
+
+/** Đường dẫn gửi cho khách: phải có mã truy cập riêng, không đoán được từ ticket_id (BUG-006). */
+const surveyLink = (ticketId, token) => `/khao-sat.html?ticket=${ticketId}&t=${token}`;
 
 function createSurveyService({ surveyRepo, ticketRepo, now = () => new Date() }) {
   function present(row) {
     return { ...row, low_score: row.score != null && row.score <= LOW_SCORE };
+  }
+
+  /**
+   * Khảo sát mà KHÁCH được phép mở: phải đúng mã truy cập trong đường dẫn.
+   * Sai mã, không có, hay đã xóa đều trả cùng một lỗi 404 – không cho biết khảo sát có tồn tại hay không.
+   */
+  function openForCustomer(ticketId, token) {
+    const raw = surveyRepo.findRawByTicketId(ticketId);
+    if (!raw || raw.is_deleted || !raw.access_token || !safeEqual(raw.access_token, token))
+      throw E.notFound('Khảo sát không khả dụng');
+    return raw;
   }
 
   return {
@@ -23,20 +38,20 @@ function createSurveyService({ surveyRepo, ticketRepo, now = () => new Date() })
         if (/constraint failed/i.test(err.message)) throw E.alreadySurveyed();
         throw err;
       }
+      const { access_token: token } = surveyRepo.findRawByTicketId(ticketId);
+      // Đường dẫn chỉ trả cho tác nhân hệ thống (người gửi tin nhắn cho khách)
+      return { ...present(surveyRepo.findByTicketId(ticketId)), survey_link: surveyLink(ticketId, token) };
+    },
+
+    /** Xem form khảo sát (khách mở đường dẫn trong tin nhắn). Không lộ thông tin khách. */
+    getByTicket(ticketId, token) {
+      openForCustomer(ticketId, token);
       return present(surveyRepo.findByTicketId(ticketId));
     },
 
-    /** Xem form khảo sát của một phiếu (khách mở liên kết). Không lộ thông tin khách. */
-    getByTicket(ticketId) {
-      const row = surveyRepo.findByTicketId(ticketId);
-      if (!row) throw E.notFound('Khảo sát không khả dụng');
-      return present(row);
-    },
-
-    /** UC2 – khách gửi điểm 1–5 và nhận xét. */
-    submit(ticketId, { score, comment }) {
-      const raw = surveyRepo.findRawByTicketId(ticketId);
-      if (!raw || raw.is_deleted) throw E.notFound('Khảo sát không khả dụng');
+    /** UC2 – khách gửi điểm 1–5 và nhận xét qua đúng đường dẫn của mình. */
+    submit(ticketId, token, { score, comment }) {
+      const raw = openForCustomer(ticketId, token);
       if (raw.status === 'DA_TRA_LOI') throw E.alreadySurveyed();           // QT-10
       const changed = surveyRepo.submitResponse(ticketId, score, comment, now().toISOString());
       if (changed !== 1) throw E.alreadySurveyed();                          // thua cuộc đua gửi đồng thời
@@ -66,4 +81,4 @@ function createSurveyService({ surveyRepo, ticketRepo, now = () => new Date() })
   };
 }
 
-module.exports = { createSurveyService, LOW_SCORE };
+module.exports = { createSurveyService, surveyLink, LOW_SCORE };

@@ -13,11 +13,16 @@
       <h1 class="phieu__ten">Khảo sát hài lòng</h1>
       <p class="phieu__phu">Cảm ơn bạn đã sử dụng dịch vụ bảo hành</p>
 
-      <!-- Liên kết gửi cho khách có dạng khao-sat.html?ticket=231; ô dưới đây để mở thủ công khi demo -->
+      <!-- Đường dẫn gửi cho khách có dạng khao-sat.html?ticket=231&t=<mã truy cập 32 ký tự> (BUG-006);
+           ô dưới đây để mở thủ công khi demo: phải nhập cả mã truy cập, chỉ có số phiếu thì không mở được -->
       <form id="form-tim" class="bo-loc" novalidate>
         <div class="truong">
           <label for="ticket">Mã phiếu (ticket_id)</label>
           <input id="ticket" name="ticket" inputmode="numeric" placeholder="ví dụ: 231">
+        </div>
+        <div class="truong">
+          <label for="ma-truy-cap">Mã truy cập (t)</label>
+          <input id="ma-truy-cap" name="t" autocomplete="off" spellcheck="false" placeholder="32 ký tự trong đường dẫn">
         </div>
         <button class="nut-vien" type="submit">Mở khảo sát</button>
       </form>

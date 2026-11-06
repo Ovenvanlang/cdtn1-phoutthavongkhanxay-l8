@@ -8,6 +8,7 @@ const MAX_COMMENT = 500;
 const ds = createDataState(document.getElementById('vung-khao-sat'));
 const formTim = document.getElementById('form-tim');
 const oMaPhieu = document.getElementById('ticket');
+const oMaTruyCap = document.getElementById('ma-truy-cap');
 
 /** Thẻ phiếu bảo hành như bản thiết kế; dòng "Thiết bị" chỉ hiện khi API trả về tên thiết bị. */
 function veThePhieu(khaoSat) {
@@ -23,7 +24,7 @@ function veThePhieu(khaoSat) {
     </div>`;
 }
 
-function veFormTraLoi(khaoSat) {
+function veFormTraLoi(khaoSat, maTruyCap) {
   const wrap = document.createElement('div');
   wrap.innerHTML = `
     ${veThePhieu(khaoSat)}
@@ -68,7 +69,7 @@ function veFormTraLoi(khaoSat) {
     }
     dsGui.loading('Đang gửi phản hồi…');
     try {
-      const kq = await surveysApi.submit(khaoSat.ticket_id, { score: Number(chon.value), comment: oNhanXet.value.trim() });
+      const kq = await surveysApi.submit(khaoSat.ticket_id, maTruyCap, { score: Number(chon.value), comment: oNhanXet.value.trim() });
       form.querySelectorAll('input, textarea, button').forEach((e) => { e.disabled = true; });
       dsGui.content(`<div class="ghi-chu ghi-chu--xanh">Đã ghi nhận ${kq.score}/5. Cảm ơn quý khách đã phản hồi!</div>`);
     } catch (err) {
@@ -84,11 +85,11 @@ function veDaTraLoi(khaoSat) {
       ngày ${escapeHtml(ngay(khaoSat.responded_at))}. Mỗi phiếu chỉ khảo sát một lần (QT-10).</div>`;
 }
 
-function moKhaoSat(ticketId) {
+function moKhaoSat(ticketId, maTruyCap) {
   return load(
     ds,
-    () => surveysApi.getByTicket(ticketId),
-    (khaoSat) => (khaoSat.status === 'DA_TRA_LOI' ? veDaTraLoi(khaoSat) : veFormTraLoi(khaoSat)),
+    () => surveysApi.getByTicket(ticketId, maTruyCap),
+    (khaoSat) => (khaoSat.status === 'DA_TRA_LOI' ? veDaTraLoi(khaoSat) : veFormTraLoi(khaoSat, maTruyCap)),
     { loadingText: 'Đang mở phiếu khảo sát…' },
   );
 }
@@ -96,17 +97,21 @@ function moKhaoSat(ticketId) {
 formTim.addEventListener('submit', (ev) => {
   ev.preventDefault();
   const ma = oMaPhieu.value.trim();
-  if (!ma) { ds.empty('Nhập mã phiếu để mở khảo sát.'); return; }
-  history.replaceState(null, '', `?ticket=${encodeURIComponent(ma)}`);
-  moKhaoSat(ma);
+  const t = oMaTruyCap.value.trim().toLowerCase();
+  if (!ma || !t) { ds.empty('Nhập mã phiếu và mã truy cập trong đường dẫn để mở khảo sát.'); return; }
+  history.replaceState(null, '', `?ticket=${encodeURIComponent(ma)}&t=${encodeURIComponent(t)}`);
+  moKhaoSat(ma, t);
 });
 
-const tuLienKet = new URLSearchParams(location.search).get('ticket');
-if (tuLienKet) {
-  // Khách mở đúng liên kết trong tin nhắn: ẩn ô tra mã, hiện thẳng phiếu như bản thiết kế
+const thamSo = new URLSearchParams(location.search);
+const tuLienKet = thamSo.get('ticket');
+const maTrongLienKet = thamSo.get('t');
+if (tuLienKet && maTrongLienKet) {
+  // Khách mở đúng đường dẫn trong tin nhắn: ẩn ô tra mã, hiện thẳng phiếu như bản thiết kế
   formTim.hidden = true;
   oMaPhieu.value = tuLienKet;
-  moKhaoSat(tuLienKet);
+  oMaTruyCap.value = maTrongLienKet;
+  moKhaoSat(tuLienKet, maTrongLienKet);
 } else {
-  ds.empty('Nhập mã phiếu ở trên để mở khảo sát.');
+  ds.empty('Nhập mã phiếu và mã truy cập ở trên để mở khảo sát.');
 }

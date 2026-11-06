@@ -24,7 +24,7 @@ function createSurveyRepository(db) {
     "INSERT INTO survey_response(ticket_id, status, sent_at) VALUES (?, 'DA_GUI', ?)");
   const publicByTicket = db.prepare(`${PUBLIC_SELECT} WHERE s.ticket_id = ? AND s.is_deleted = 0`);
   const rawByTicket = db.prepare(
-    'SELECT response_id, status, is_deleted FROM survey_response WHERE ticket_id = ?');
+    'SELECT response_id, status, is_deleted, access_token FROM survey_response WHERE ticket_id = ?');
   const ensureDate = db.prepare(
     'INSERT OR IGNORE INTO dim_date(date_id, day, month, quarter, year) VALUES (?, ?, ?, ?, ?)');
   const submit = db.prepare(

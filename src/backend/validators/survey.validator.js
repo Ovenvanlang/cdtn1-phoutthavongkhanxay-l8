@@ -7,6 +7,14 @@ const STATUSES = ['DA_GUI', 'DA_TRA_LOI'];
 
 const ticketId = (value) => positiveInt(value, 'ticket_id');
 
+/** Mã truy cập trong đường dẫn khảo sát gửi cho khách (?t=…): 32 ký tự hex (BUG-006). */
+function accessToken(value) {
+  if (isMissing(value)) throw E.invalid('Thiếu mã truy cập t trong đường dẫn khảo sát', 't');
+  if (typeof value !== 'string' || !/^[0-9a-f]{32}$/.test(value))
+    throw E.invalid('Mã truy cập t trong đường dẫn khảo sát không hợp lệ', 't');
+  return value;
+}
+
 /** POST /api/surveys  { ticket_id } */
 function createBody(body) {
   return { ticketId: ticketId(bodyObject(body).ticket_id) };
@@ -36,4 +44,4 @@ function listQuery(query = {}) {
   };
 }
 
-module.exports = { ticketId, createBody, submitBody, listQuery, MAX_COMMENT };
+module.exports = { ticketId, accessToken, createBody, submitBody, listQuery, MAX_COMMENT };

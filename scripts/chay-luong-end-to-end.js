@@ -76,6 +76,8 @@ async function main() {
     const tao = await call('POST', '/api/surveys', { token: tokens.hethong, body: { ticket_id: ungVien.ticket_id } });
     show('OUTPUT', tao.json.data);
     expect(tao.status === 201 && tao.json.data.status === 'DA_GUI', 'Tạo khảo sát -> 201, trạng thái DA_GUI');
+    expect(/^\/khao-sat\.html\?ticket=\d+&t=[0-9a-f]{32}$/.test(tao.json.data.survey_link || ''),
+      'UC1 trả đường dẫn gửi khách có mã truy cập riêng (BUG-006)');
     const taoLai = await call('POST', '/api/surveys', { token: tokens.hethong, body: { ticket_id: ungVien.ticket_id } });
     expect(taoLai.status === 409 && taoLai.json.error === 'DA_KHAO_SAT', 'QT-10: tạo lần hai -> 409 DA_KHAO_SAT');
   } else {
@@ -93,17 +95,21 @@ async function main() {
   }
 
   // ---------------------------------------------------------------- 3. UC2
-  title('UC2 – khách hàng mở liên kết và gửi điểm (không cần đăng nhập)');
-  const form = await call('GET', `/api/surveys/${ungVien.ticket_id}`);
+  title('UC2 – khách hàng mở đường dẫn trong tin nhắn và gửi điểm (không đăng nhập, có mã truy cập)');
+  const maTruyCap = db.prepare('SELECT access_token FROM survey_response WHERE ticket_id = ?').get(ungVien.ticket_id).access_token;
+  const duongDan = `/api/surveys/${ungVien.ticket_id}?t=${maTruyCap}`;
+  const khongMa = await call('POST', `/api/surveys/${ungVien.ticket_id}`, { body: { score: 1 } });
+  expect(khongMa.status === 400 && khongMa.json.field === 't', 'BUG-006: chỉ có số phiếu, không có mã truy cập -> 400, không ghi điểm');
+  const form = await call('GET', duongDan);
   expect(form.status === 200 && form.json.data.customer_phone === undefined, 'Form công khai không chứa thông tin khách hàng');
   show('INPUT', { score: 2, comment: 'Sửa lâu, hẹn hai lần mới xong' });
-  const guiPH = await call('POST', `/api/surveys/${ungVien.ticket_id}`, { body: { score: 2, comment: 'Sửa lâu, hẹn hai lần mới xong' } });
+  const guiPH = await call('POST', duongDan, { body: { score: 2, comment: 'Sửa lâu, hẹn hai lần mới xong' } });
   show('OUTPUT', guiPH.json.data);
   expect(guiPH.status === 200 && guiPH.json.data.status === 'DA_TRA_LOI' && guiPH.json.data.low_score === true,
     'Gửi phản hồi -> 200, DA_TRA_LOI, BS-03 đánh dấu điểm thấp');
-  const guiLai = await call('POST', `/api/surveys/${ungVien.ticket_id}`, { body: { score: 5 } });
+  const guiLai = await call('POST', duongDan, { body: { score: 5 } });
   expect(guiLai.status === 409 && guiLai.json.error === 'DA_KHAO_SAT', 'QT-10: gửi lần hai -> 409 DA_KHAO_SAT');
-  const diemSai = await call('POST', `/api/surveys/${ungVien.ticket_id}`, { body: { score: 6 } });
+  const diemSai = await call('POST', duongDan, { body: { score: 6 } });
   expect(diemSai.status === 400 && diemSai.json.error === 'DU_LIEU_KHONG_HOP_LE', 'Điểm 6 (ngoài 1–5) -> 400 DU_LIEU_KHONG_HOP_LE');
 
   // ---------------------------------------------------------------- 4. UC3 + UC4

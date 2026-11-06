@@ -41,7 +41,8 @@ test('Đua gửi phản hồi: yêu cầu đến sau khi dòng đã chuyển DA_
   const racing = { ...realRepo, findRawByTicketId: (id) => { const row = realRepo.findRawByTicketId(id);
     realRepo.submitResponse(id, 5, 'Nhanh tay hơn', '2026-10-10T01:00:00.000Z'); return row; } };
   const service = createSurveyService({ surveyRepo: racing, ticketRepo });
-  assert.throws(() => service.submit(1, { score: 1, comment: null }), (err) => err.code === 'DA_KHAO_SAT');
+  const ma = db.prepare('SELECT access_token FROM survey_response WHERE ticket_id = 1').get().access_token;
+  assert.throws(() => service.submit(1, ma, { score: 1, comment: null }), (err) => err.code === 'DA_KHAO_SAT');
   assert.strictEqual(db.prepare('SELECT score FROM survey_response WHERE ticket_id = 1').get().score, 5);
   db.close();
 });

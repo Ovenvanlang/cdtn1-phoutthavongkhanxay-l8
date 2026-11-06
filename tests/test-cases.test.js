@@ -54,17 +54,9 @@ async function dungMoiTruong(t, { now } = {}) {
   return { db, call, token, dem };
 }
 
-/**
- * Mã truy cập trong đường dẫn khảo sát gửi cho khách. Phiên bản hiện tại CHƯA có cột access_token
- * (lỗ hổng TC-10) nên trả chuỗi rỗng; máy chủ hiện bỏ qua tham số t.
- */
-function lienKet(db, ticketId) {
-  try {
-    return db.prepare('SELECT access_token AS t FROM survey_response WHERE ticket_id = ?').get(ticketId)?.t ?? '';
-  } catch {
-    return '';
-  }
-}
+/** Mã truy cập trong đường dẫn khảo sát gửi cho khách (migration 005, BUG-006). */
+const lienKet = (db, ticketId) =>
+  db.prepare('SELECT access_token AS t FROM survey_response WHERE ticket_id = ?').get(ticketId).t;
 
 // ---------------------------------------------------------------- 1. LUỒNG ĐÚNG
 test('TC-01 [Luồng đúng · QT-10] hệ thống tạo khảo sát cho phiếu ĐÃ ĐÓNG -> 201, DA_GUI, chưa có điểm', async (t) => {
@@ -73,10 +65,12 @@ test('TC-01 [Luồng đúng · QT-10] hệ thống tạo khảo sát cho phiếu
   const r = await call('POST', '/api/surveys', { token: await token('hethong'), body: { ticket_id: 1 } });
   const sau = dem('SELECT COUNT(*) n FROM survey_response');
   t.diagnostic(`HTTP ${r.status} · status=${r.json.data?.status} · score=${r.json.data?.score} · survey_response ${truoc} -> ${sau}`);
+  t.diagnostic(`survey_link=${r.json.data?.survey_link}`);
   assert.strictEqual(r.status, 201);
   assert.strictEqual(r.json.data.status, 'DA_GUI');
   assert.strictEqual(r.json.data.score, null);
   assert.strictEqual(sau, truoc + 1);
+  assert.match(r.json.data.survey_link, /^\/khao-sat\.html\?ticket=1&t=[0-9a-f]{32}$/, 'đường dẫn gửi khách phải có mã truy cập');
 });
 
 test('TC-02 [Luồng đúng · UC2, BS-03] khách mở đúng đường dẫn và gửi 2 điểm -> 200, DA_TRA_LOI, low_score = true', async (t) => {

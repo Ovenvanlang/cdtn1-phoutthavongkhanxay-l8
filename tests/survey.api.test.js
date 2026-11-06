@@ -52,12 +52,29 @@ const call = async (method, path, { token, body } = {}) => {
   return { status: res.status, json: await res.json() };
 };
 const he_thong = () => ({ token: TOKEN.hethong });
+/** Mã truy cập riêng của khảo sát – có trong đường dẫn gửi cho khách (BUG-006). */
+const ma = (ticketId) => db.prepare('SELECT access_token FROM survey_response WHERE ticket_id = ?').get(ticketId).access_token;
+const lienKet = (ticketId) => `/api/surveys/${ticketId}?t=${ma(ticketId)}`;
 
 test('UC1: hệ thống tạo khảo sát cho phiếu ĐÃ ĐÓNG -> 201, trạng thái DA_GUI, chưa có điểm', async () => {
   const r = await call('POST', '/api/surveys', { ...he_thong(), body: { ticket_id: 1 } });
   assert.strictEqual(r.status, 201);
   assert.strictEqual(r.json.data.status, 'DA_GUI');
   assert.strictEqual(r.json.data.score, null);
+  assert.strictEqual(r.json.data.survey_link, `/khao-sat.html?ticket=1&t=${ma(1)}`, 'UC1 trả đường dẫn gửi cho khách');
+  assert.match(ma(1), /^[0-9a-f]{32}$/);
+});
+
+test('BUG-006: form công khai không có mã truy cập -> 400; sai mã -> 404; khảo sát không bị đổi', async () => {
+  const khongMa = await call('POST', '/api/surveys/1', { body: { score: 1 } });
+  assert.strictEqual(khongMa.status, 400);
+  assert.strictEqual(khongMa.json.field, 't');
+  const saiMa = await call('POST', `/api/surveys/1?t=${'f'.repeat(32)}`, { body: { score: 1 } });
+  assert.strictEqual(saiMa.status, 404);
+  assert.strictEqual(saiMa.json.error, 'KHONG_TIM_THAY');
+  assert.strictEqual((await call('GET', '/api/surveys/1')).status, 400);
+  assert.strictEqual((await call('GET', `/api/surveys/1?t=${'f'.repeat(32)}`)).status, 404);
+  assert.strictEqual(db.prepare('SELECT status FROM survey_response WHERE ticket_id=1').get().status, 'DA_GUI');
 });
 
 test('QT-10: tạo khảo sát lần 2 cho cùng một phiếu -> 409 DA_KHAO_SAT', async () => {
@@ -88,14 +105,14 @@ test('Chưa đăng nhập không được tạo khảo sát -> 401; sai vai trò
 
 test('UC2: điểm ngoài 1–5 hoặc sai kiểu -> 400 và khảo sát vẫn ở DA_GUI', async () => {
   for (const bad of [0, 6, 9, 2.5, '5', null]) {
-    const r = await call('POST', '/api/surveys/1', { body: { score: bad } });
+    const r = await call('POST', lienKet(1), { body: { score: bad } });
     assert.strictEqual(r.status, 400, `score=${JSON.stringify(bad)} phải bị từ chối`);
   }
   assert.strictEqual(db.prepare('SELECT status FROM survey_response WHERE ticket_id=1').get().status, 'DA_GUI');
 });
 
 test('Dữ liệu sai (thiếu trường bắt buộc): gửi phản hồi không có score -> 400 kèm tên trường, không sập', async () => {
-  const r = await call('POST', '/api/surveys/1', { body: { comment: 'Quên chấm điểm' } });
+  const r = await call('POST', lienKet(1), { body: { comment: 'Quên chấm điểm' } });
   assert.strictEqual(r.status, 400);
   assert.strictEqual(r.json.error, 'DU_LIEU_KHONG_HOP_LE');
   assert.strictEqual(r.json.field, 'score', 'phải nói rõ trường nào sai');
@@ -106,24 +123,24 @@ test('Dữ liệu sai (thiếu trường bắt buộc): gửi phản hồi khôn
 });
 
 test('UC2: nhận xét quá 500 ký tự -> 400', async () => {
-  const r = await call('POST', '/api/surveys/1', { body: { score: 4, comment: 'x'.repeat(501) } });
+  const r = await call('POST', lienKet(1), { body: { score: 4, comment: 'x'.repeat(501) } });
   assert.strictEqual(r.status, 400);
 });
 
 test('UC2: gửi điểm hợp lệ -> 200, DA_TRA_LOI, low_score đúng theo BS-03', async () => {
-  const ok = await call('POST', '/api/surveys/1', { body: { score: 5, comment: '  Tốt  ' } });
+  const ok = await call('POST', lienKet(1), { body: { score: 5, comment: '  Tốt  ' } });
   assert.strictEqual(ok.status, 200);
   assert.strictEqual(ok.json.data.status, 'DA_TRA_LOI');
   assert.strictEqual(ok.json.data.comment, 'Tốt');
   assert.strictEqual(ok.json.data.low_score, false);
   assert.strictEqual(ok.json.data.responded_at, '2026-10-10T08:00:00.000Z');
   await call('POST', '/api/surveys', { ...he_thong(), body: { ticket_id: 2 } });
-  const low = await call('POST', '/api/surveys/2', { body: { score: 2 } });
+  const low = await call('POST', lienKet(2), { body: { score: 2 } });
   assert.strictEqual(low.json.data.low_score, true);
 });
 
 test('QT-10: gửi phản hồi lần 2 -> 409 và điểm cũ KHÔNG bị ghi đè', async () => {
-  const r = await call('POST', '/api/surveys/1', { body: { score: 1 } });
+  const r = await call('POST', lienKet(1), { body: { score: 1 } });
   assert.strictEqual(r.status, 409);
   assert.strictEqual(db.prepare('SELECT score FROM survey_response WHERE ticket_id=1').get().score, 5);
 });
@@ -174,7 +191,7 @@ test('Lọc điểm thấp score_max=2 chỉ trả phản hồi đã trả lời
 test('QT-13: xóa mềm -> đọc lại 404 nhưng bản ghi vẫn còn; quản lý trung tâm khác không xóa được', async () => {
   assert.strictEqual((await call('DELETE', '/api/surveys/5', { token: TOKEN.ql1 })).status, 403);
   assert.strictEqual((await call('DELETE', '/api/surveys/5', { token: TOKEN.ql2 })).status, 200);
-  assert.strictEqual((await call('GET', '/api/surveys/5')).status, 404);
+  assert.strictEqual((await call('GET', lienKet(5))).status, 404);
   assert.strictEqual(db.prepare('SELECT is_deleted FROM survey_response WHERE ticket_id=5').get().is_deleted, 1);
   assert.strictEqual((await call('POST', '/api/surveys', { ...he_thong(), body: { ticket_id: 5 } })).status, 409,
     'phiếu đã khảo sát (kể cả đã xóa mềm) không tạo lại được');
@@ -190,6 +207,6 @@ test('UC3: báo cáo CSAT đã hiện thực -> 200 và tính đúng theo BS-01 
 });
 
 test('JSON hỏng -> 400 thay vì 500', async () => {
-  const res = await fetch(`${base}/api/surveys/1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{score:' });
+  const res = await fetch(`${base}${lienKet(1)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{score:' });
   assert.strictEqual(res.status, 400);
 });

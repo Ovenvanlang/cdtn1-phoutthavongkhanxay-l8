@@ -206,6 +206,13 @@ test('UC3: báo cáo CSAT đã hiện thực -> 200 và tính đúng theo BS-01 
   assert.strictEqual(r.json.data.low_score_count, 1);
 });
 
+test('BUG-009: phản hồi không để lộ công nghệ máy chủ qua header X-Powered-By', async () => {
+  for (const path of ['/health', '/api/surveys', '/khong-co-trang-nay']) {
+    const res = await fetch(base + path);
+    assert.strictEqual(res.headers.get('x-powered-by'), null, path);
+  }
+});
+
 test('JSON hỏng -> 400 thay vì 500', async () => {
   const res = await fetch(`${base}${lienKet(1)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{score:' });
   assert.strictEqual(res.status, 400);

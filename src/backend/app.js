@@ -23,6 +23,7 @@ const NODE_MODULES = path.join(__dirname, '..', '..', 'node_modules');
 
 function createApp({ db, now, authSecret = config.authSecret, tokenTtlHours = config.tokenTtlHours } = {}) {
   const app = express();
+  app.disable('x-powered-by');            // không quảng cáo "Express" trong mọi phản hồi (BUG-009, OWASP A02)
   app.use(express.json({ limit: '10kb' }));
 
   // Repositories (chỉ SQL)

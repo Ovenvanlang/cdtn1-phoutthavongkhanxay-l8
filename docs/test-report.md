@@ -5,7 +5,8 @@ Mẫu 8 cột theo `07_implementation/69_testing_qa_principles.md` §2 và `69a_
 (hàm `dungMoiTruong`: SQLite trong bộ nhớ, dữ liệu cố định) nên chạy lại ở máy nào cũng cho cùng kết quả.
 
 **Chạy lại:** cả 12 case `npm run tc` · một case `npm run tc -- TC-07` (in kết quả thực tế ở các dòng `ℹ`) · toàn bộ kèm hồi quy `npm test`.
-**Ảnh minh chứng:** `docs/screenshots/TC-xx.png` (lần chạy sau sửa) và `TC-10-truoc-sua.png`, `TC-11-truoc-sua.png` (lần chạy đầu, FAIL).
+**Ảnh minh chứng:** `docs/screenshots/TC-xx.png` (lần chạy sau sửa) và `TC-10-truoc-sua.png`, `TC-11-truoc-sua.png` (lần chạy đầu, FAIL);
+cả 12 case một lượt: `tc-all.png`; toàn bộ `npm test`: `npm-test.png`; `npm audit`: `npm-audit.png`.
 
 ## Tổng hợp hai lần chạy
 

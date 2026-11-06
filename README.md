@@ -1,6 +1,13 @@
 # Khảo sát hài lòng CSAT – Smart CRM Mekong Mobile (Luồng L8)
 
-Chuyên đề tốt nghiệp 1 · Track SE · PHOUTTHAVONG Khanxay – 237480201IS10 · GVHD: ThS. Nguyễn Minh Tân · Bài tập 2 – tag `v0.2`
+Chuyên đề tốt nghiệp 1 · Track SE · PHOUTTHAVONG Khanxay – 237480201IS10 · GVHD: ThS. Nguyễn Minh Tân · Bài tập 3 – tag `v1.0` (BT2: tag `v0.2`)
+
+**Chạy bằng 2 lệnh** (chỉ cần Docker – hướng dẫn đầy đủ tiếng Anh: [`docs/deployment-guide.md`](docs/deployment-guide.md)):
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+Mở `http://localhost:3000` (đăng nhập `bgd` / `Demo@2026`). Chạy test bằng Docker: `docker compose --profile test run --rm test`.
 
 ## 1. Giới thiệu
 Sau khi phiếu bảo hành chuyển sang **ĐÃ ĐÓNG**, hệ thống tạo khảo sát; khách chấm điểm 1–5 kèm nhận xét.
@@ -8,26 +15,29 @@ Quản lý trung tâm, ban giám đốc và marketing xem chỉ số CSAT theo t
 Quản lý xem được danh sách phản hồi điểm thấp để gọi lại khách trước khi họ phàn nàn trên mạng xã hội (vấn đề **V7** của case study).
 Ban giám đốc quản lý tài khoản nội bộ.
 
-Tài liệu: `docs/srs.md` (SRS) · `docs/thay-doi-thiet-ke.md` (nhật ký thay đổi so với BT1, TD-01 → TD-29) · `docs/architecture-thuc-te.png`
-(kiến trúc đã hiện thực) · `docs/erd-thuc-te.png` · `docs/anh-xa-kien-truc.md` · `docs/anh-man-hinh.md` · `docs/ket-qua-chay-mau.txt` · `docs/bug-log.md` · `docs/ai-disclosure.md`.
+Tài liệu BT3: [`docs/test-plan.md`](docs/test-plan.md) · [`docs/test-report.md`](docs/test-report.md) (12 test case, ảnh trong `docs/screenshots/`) ·
+[`docs/bug-log.md`](docs/bug-log.md) (BUG-001 → BUG-009) · [`docs/deployment-guide.md`](docs/deployment-guide.md) · [`docs/checklist-bao-mat.md`](docs/checklist-bao-mat.md) ·
+[`docs/api-docs/`](docs/api-docs/README.md) (API docs tiếng Anh + `khao-sat.http`).
+Tài liệu thiết kế: `docs/srs.md` (SRS) · `docs/thay-doi-thiet-ke.md` (nhật ký thay đổi, TD-01 → TD-34) · `docs/architecture-thuc-te.png`
+(kiến trúc đã hiện thực) · `docs/erd-thuc-te.png` · `docs/anh-xa-kien-truc.md` · `docs/anh-man-hinh.md` · `docs/ket-qua-chay-mau.txt` · `docs/ai-disclosure.md`.
 
 ## 2. Yêu cầu môi trường
 - **Node.js 22.13 trở lên** (đã thử với 22.23; image Docker dùng 22.20), npm 10 – kiểm tra: `node -v`
 - **CSDL: SQLite 3** dùng qua module `node:sqlite` có sẵn trong Node – không cần cài máy chủ CSDL, không biên dịch thư viện (TD-12)
 - Không cần Internet khi chạy: Chart.js được phục vụ từ `node_modules`; CSS tự viết (TD-18)
-- Biến môi trường: xem `.env.example` (`PORT`, `DATABASE_FILE`, `AUTH_SECRET`, `TOKEN_TTL_HOURS`, `DEMO_PASSWORD`)
+- Biến môi trường: xem `.env.example` (`PORT`, `DATABASE_FILE`, `AUTH_SECRET`, `TOKEN_TTL_HOURS`, `APP_TIMEZONE`, `DEMO_PASSWORD`) – bảng ý nghĩa ở Deployment Guide §3
 - Phiên bản thư viện khóa trong `package-lock.json` (cài bằng `npm ci`)
-- Tùy chọn: Docker Desktop / Docker Engine có `docker compose` (mục 3b)
+- Hoặc chỉ cần Docker Desktop / Docker Engine 24+ với Compose v2.24+ (mục 3b)
 
 ## 3. Cài đặt và chạy (mỗi bước một lệnh, chạy lần lượt)
 | # | Việc | Lệnh | Kết quả mong đợi |
 |---|---|---|---|
-| 1 | Tải mã nguồn | `git clone --branch v0.2 https://github.com/Ovenvanlang/cdtn1-phoutthavongkhanxay-l8.git` | có thư mục `cdtn1-phoutthavongkhanxay-l8` |
+| 1 | Tải mã nguồn | `git clone --branch v1.0 https://github.com/Ovenvanlang/cdtn1-phoutthavongkhanxay-l8.git` | có thư mục `cdtn1-phoutthavongkhanxay-l8` |
 | 2 | Vào thư mục dự án | `cd cdtn1-phoutthavongkhanxay-l8` | |
 | 3 | Cài thư viện đúng phiên bản khóa | `npm ci` | cài xong, không biên dịch native |
 | 4 | Tạo tệp cấu hình | `cp .env.example .env` (Windows CMD: `copy .env.example .env`) | có tệp `.env` |
-| 5 | Dựng CSDL từ trống + dữ liệu mẫu | `npm run db:setup` | `Đã chạy migration: 001…004`, `1200 phiếu`, 4 tài khoản demo |
-| 6 | Chạy bộ test | `npm test` | `# tests 69` · `# pass 69` · `# fail 0` |
+| 5 | Dựng CSDL từ trống + dữ liệu mẫu | `npm run db:setup` | `Đã chạy migration: 001…006`, `1200 phiếu`, 4 tài khoản demo |
+| 6 | Chạy bộ test | `npm test` | `# tests 87` · `# pass 87` · `# fail 0` |
 | 7 | Chạy thử trọn luồng | `npm run chay-luong` | `== TOÀN BỘ LUỒNG CHẠY XONG, KHÔNG CÓ BƯỚC NÀO THẤT BẠI ==` |
 | 8 | Khởi động máy chủ | `npm start` | `API khảo sát CSAT chạy tại http://localhost:3000` |
 | 9 | Mở giao diện | trình duyệt vào `http://localhost:3000` | trang chủ với 3 màn hình |
@@ -38,10 +48,11 @@ Tài liệu: `docs/srs.md` (SRS) · `docs/thay-doi-thiet-ke.md` (nhật ký thay
 ### 3b. Chạy bằng Docker (2 lệnh)
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up -d --build
 ```
-Mở `http://localhost:3000`. Container tự chạy migration và seed (đã có dữ liệu thì bỏ qua); dữ liệu nằm trong volume `csat_data`.
-Dừng: `Ctrl+C` rồi `docker compose down` (thêm `-v` để xóa dữ liệu).
+Mở `http://localhost:3000` khi `docker compose ps` báo `(healthy)`. Container tự chạy migration và seed (đã có dữ liệu thì bỏ qua);
+dữ liệu nằm trong volume `csat_data`. Chạy test không cần Node: `docker compose --profile test run --rm test`.
+Dừng: `docker compose down` (thêm `-v` để xóa dữ liệu). Các bước kiểm tra chi tiết: `docs/deployment-guide.md` §5.
 
 ### Lệnh phụ trợ
 ```bash
@@ -62,9 +73,13 @@ npm run dev                      # chạy có tự khởi động lại khi sử
 
 ## 4. Kiểm thử
 ```bash
-npm test
+npm test                   # toàn bộ 87 test (12 test case của Test Report + 75 test hồi quy)
+npm run tc                 # chỉ 12 test case TC-01…TC-12, in kết quả thực tế
+npm run tc -- TC-07        # chạy lại đúng một test case (khi GV chọn ngẫu nhiên)
+docker compose --profile test run --rm test   # như npm test, trên máy chỉ có Docker
 ```
-69 test chạy trên CSDL SQLite trong bộ nhớ, tự dựng dữ liệu – không phụ thuộc dữ liệu trên máy. Đủ 3 loại theo đề BT2:
+Mọi test chạy trên CSDL SQLite trong bộ nhớ (TC-12 dùng tệp tạm), tự dựng dữ liệu – không phụ thuộc dữ liệu trên máy. CI: `.github/workflows/ci.yml`
+(npm test, chạy lại `db:setup` lần 2, `npm audit`). Kế hoạch và kết quả: `docs/test-plan.md`, `docs/test-report.md`. Ví dụ theo loại (BT2):
 
 | Loại | Ví dụ (tệp) |
 |---|---|
@@ -84,7 +99,7 @@ src/
     services/                 #   tầng 2: quy tắc nghiệp vụ (QT-10, QT-13, QT-14, BS-01..06, TK-01..03)
     repositories/             #   tầng 3: CHỈ SQL
     errors/AppError.js        #   lỗi có mã nghiệp vụ, không mang mã HTTP
-    utils/password.js         #   băm mật khẩu scrypt
+    utils/                    #   password.js (băm scrypt) · local-date.js (ngày theo giờ Việt Nam)
     db/                       #   connection.js (SQLite), migrate.js, import-csv.js
   frontend/                   # khối "Frontend"
     index.html, dang-nhap.html, khao-sat.html, bao-cao-csat.html, xu-huong.html
@@ -92,13 +107,14 @@ src/
     components/               #   DataState, biểu đồ, định dạng số Việt Nam, thanh bên
     pages/                    #   mã của từng màn hình (không gọi fetch trực tiếp)
     assets/giao-dien.css
-migrations/                   # 001–004: dựng CSDL từ trống, chạy lại không lỗi
+migrations/                   # 001–006: dựng CSDL từ trống, chạy lại không lỗi
 seeds/seed.js                 # dữ liệu mô phỏng bám case study, seed = 42
 data/sample/                  # mẫu chép nguyên văn từ bộ CSV chính thức (xem data/sample/README.md)
-scripts/                      # chạy trọn luồng end-to-end; trích mẫu CSV
-tests/                        # 69 test (node:test)
-docs/                         # SRS, sơ đồ, ảnh chụp, nhật ký thay đổi, khai báo AI
-Dockerfile, docker-compose.yml
+scripts/                      # chạy trọn luồng end-to-end; chạy lại 1 test case (chay-tc.js); trích mẫu CSV
+tests/                        # 87 test (node:test); test-cases.test.js = 12 TC của Test Report
+docs/                         # SRS, sơ đồ, Test Plan/Report, Bug Log, Deployment Guide, checklist bảo mật, api-docs/, ảnh chụp
+Dockerfile, docker-compose.yml # ảnh chạy + giai đoạn test (profile test)
+.github/workflows/ci.yml      # CI
 ```
 Express phục vụ luôn `src/frontend/` cùng cổng với API nên giao diện gọi API bằng đường dẫn tương đối (`/api/...`), không cần CORS.
 
@@ -124,13 +140,14 @@ Express phục vụ luôn `src/frontend/` cùng cổng với API nên giao diệ
 - `data/raw/`, `*.csv` (trừ `data/sample/`) và `data/*.db` không commit (`.gitignore`).
 
 ## 7. API
-Đăng nhập trả **token**; các lệnh sau gửi `Authorization: Bearer <token>`. Lỗi luôn có dạng `{"error","message","field"?}`. Hợp đồng đầy đủ: `docs/srs.md` Phụ lục A.
+Đăng nhập trả **token**; các lệnh sau gửi `Authorization: Bearer <token>`. Lỗi luôn có dạng `{"error","message","field"?}`.
+Tài liệu đầy đủ (tiếng Anh, 7 mục/endpoint, ví dụ chạy thật): [`docs/api-docs/README.md`](docs/api-docs/README.md); hợp đồng tóm tắt: `docs/srs.md` Phụ lục A.
 
 | Endpoint | Vai trò | Việc làm |
 |---|---|---|
 | `POST /api/auth/login` · `GET /api/auth/me` | công khai · đã đăng nhập | đăng nhập · thông tin phiên |
 | `POST /api/surveys` `{"ticket_id":149}` | `he_thong` | UC1: tạo khảo sát cho phiếu ĐÃ ĐÓNG |
-| `GET /api/surveys/:ticketId` · `POST /api/surveys/:ticketId` `{"score":4,"comment":"..."}` | công khai | UC2: khách xem form · gửi phản hồi |
+| `GET /api/surveys/:ticketId?t=<mã>` · `POST /api/surveys/:ticketId?t=<mã>` `{"score":4,"comment":"..."}` | khách (mã `t` trong đường dẫn) | UC2: khách xem form · gửi phản hồi (TD-30) |
 | `GET /api/surveys?status=&center_id=&score_max=&page=&limit=` · `DELETE /api/surveys/:ticketId` | `quan_ly`, `bgd` | danh sách (QT-14) · xóa mềm (QT-13) |
 | `GET /api/reports/csat?center_id=&from=&to=` | `quan_ly`, `bgd`, `marketing` | UC3 + UC4 + mốc so sánh |
 | `GET /api/reports/trend?granularity=month\|quarter&year=&center_id=` | `quan_ly`, `bgd`, `marketing` | UC5 + CSAT trung bình năm |
@@ -143,19 +160,25 @@ Ví dụ (Git Bash / Linux / macOS):
 TOKEN=$(curl -s -X POST localhost:3000/api/auth/login -H "Content-Type: application/json" \
         -d '{"username":"bgd","password":"Demo@2026"}' | node -pe "JSON.parse(require('fs').readFileSync(0)).data.token")
 curl -s -H "Authorization: Bearer $TOKEN" "localhost:3000/api/reports/csat?from=2026-01-01&to=2026-10-29"
-curl -s -X POST localhost:3000/api/surveys/5 -H "Content-Type: application/json" -d '{"comment":"quên điểm"}'
-# HTTP 400  {"error":"DU_LIEU_KHONG_HOP_LE","message":"score là bắt buộc, phải là số nguyên từ 1 đến 5","field":"score"}
+curl -s -X POST localhost:3000/api/surveys/5 -H "Content-Type: application/json" -d '{"score":1}'
+# HTTP 400  {"error":"DU_LIEU_KHONG_HOP_LE","message":"Thiếu mã truy cập t trong đường dẫn khảo sát","field":"t"}   (BUG-006)
 curl -s -X POST localhost:3000/api/users -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
      -d '{"username":"quanly.tt02","password":"QuanLy2026","full_name":"Quản lý Tân Bình","role":"quan_ly","center_id":2}'
 # HTTP 201  {"data":{"user_id":5,"username":"quanly.tt02",...,"center_name":"TTBH Quận Tân Bình","is_active":true}}
 ```
 
-## 8. Trạng thái (BT2 – tag `v0.2`)
+## 8. Trạng thái (BT3 – tag `v1.0`)
+- [x] Test Plan, 12 test case chạy thật (lần 1: 10 PASS / 2 FAIL → sửa → 12/12), ảnh `docs/screenshots/`
+- [x] Bug Log 9 lỗi; BT3: BUG-006 (Critical, A01), BUG-007 (Major), BUG-008 (Critical, phụ thuộc), BUG-009 (Minor) – mỗi lỗi một commit `fix(...)`
+- [x] Docker 2 lệnh + healthcheck + dữ liệu mẫu tự nạp; chạy test bằng Docker; CI GitHub Actions
+- [x] Deployment Guide, API docs (tiếng Anh), checklist bảo mật 7 mục có minh chứng
+
+**BT2 – tag `v0.2`:**
 - [x] Module cốt lõi: UC1, UC2, danh sách, xóa mềm (QT-10, QT-13, QT-14, QT-15) – 3 lớp routes / services / repositories + validators
 - [x] Thực thể thứ hai đủ CRUD: tài khoản `app_user` (TD-21)
 - [x] UC3–UC6: CSAT theo trung tâm, theo kỹ thuật viên, xu hướng tháng/quý, phản hồi điểm thấp, kèm mốc so sánh (BS-01..06)
 - [x] Giao diện 3 màn hình theo wireframe + đăng nhập; đủ 3 trạng thái, 2 kiểu rỗng (`docs/anh-man-hinh.md`)
-- [x] 69 test tự động, đủ 3 loại; chạy trọn luồng trên dữ liệu mô phỏng và mẫu CSV case study (`docs/ket-qua-chay-mau.txt`)
+- [x] 69 test tự động (BT2), đủ 3 loại; chạy trọn luồng trên dữ liệu mô phỏng và mẫu CSV case study (`docs/ket-qua-chay-mau.txt`)
 - [x] Migration/seed/import chạy lại không lỗi, không nhân đôi; Dockerfile + docker-compose
 - [ ] UC7 thông báo điểm thấp – **cắt khỏi phạm vi** (TD-16)
 - [ ] Phân loại nhận xét (COULD) – ngoài phạm vi

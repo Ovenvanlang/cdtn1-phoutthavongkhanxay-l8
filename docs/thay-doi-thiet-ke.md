@@ -188,3 +188,44 @@ File này được nối tiếp ở BT3 khi nhận phản hồi BT2.
 - Lý do: GV chấm bằng cách đối chiếu tài liệu với mã; tài liệu cũ mô tả sai năng lực hiện tại (route 501, header mô phỏng, CSV "thật").
 - Ảnh hưởng: chỉ tài liệu.
 
+
+## Bài tập 3 – kiểm thử và đóng gói (buổi 13–14, 07/11/2026)
+
+> **Phản hồi BT2 của GV: chưa nhận được** tại thời điểm ghi. Khi có phản hồi, mỗi ý sẽ được ghi thành một mục TD mới theo đúng 4 dòng
+> (checklist buổi 14, mục 1). Các mục dưới đây là thay đổi do **test case phát hiện lỗi** và do yêu cầu đóng gói của đề BT3.
+
+### TD-30 Đường dẫn khảo sát có mã truy cập riêng (đổi hợp đồng API công khai)
+- Phản hồi của GV: không có. Nguồn: test case **TC-10** (bảo mật A01) FAIL ở lần chạy đầu → **BUG-006** (Critical).
+- Quyết định: **SỬA** – mỗi khảo sát có `access_token` 128 bit ngẫu nhiên (migration 005); đường dẫn gửi khách đổi từ `khao-sat.html?ticket=<id>`
+  thành `khao-sat.html?ticket=<id>&t=<mã>`; `GET/POST /api/surveys/:ticketId` bắt buộc `?t=`; UC1 trả `survey_link`.
+- Lý do: thiết kế BT1/BT2 coi "biết số phiếu" là đủ để trả lời khảo sát, nhưng `ticket_id` tăng dần nên ai cũng đoán được và gửi điểm giả,
+  làm sai CSAT và khóa luôn khảo sát của khách thật (QT-10). Khách không đăng nhập nên mã trong đường dẫn là cách duy nhất chứng minh "chủ sở hữu".
+- Ảnh hưởng: SRS mục 2 + Phụ lục A; `survey.validator.accessToken`, `survey.service.openForCustomer`; trang `khao-sat` đọc `t`, ô mở thủ công
+  có thêm "Mã truy cập"; test, `chay-luong`, API docs. Thiếu `t` → 400, sai mã → 404 (không lộ khảo sát có tồn tại hay không).
+
+### TD-31 Ngày trả lời tính theo giờ Việt Nam (`APP_TIMEZONE`)
+- Phản hồi của GV: không có. Nguồn: test case **TC-11** (biên nửa đêm) FAIL → **BUG-007** (Major).
+- Quyết định: **SỬA** – `responded_date`, "hôm nay" và năm mặc định của báo cáo tính theo `APP_TIMEZONE` (mặc định `Asia/Ho_Chi_Minh`);
+  migration 006 tính lại dữ liệu cũ. Thời điểm vẫn lưu ISO UTC.
+- Lý do: người dùng và quy tắc báo cáo (BS-01, UC5 theo tháng/quý) hiểu "ngày" theo giờ Việt Nam; cắt chuỗi UTC làm phản hồi trước 07:00 sáng rơi sang ngày/tháng trước.
+- Ảnh hưởng: `utils/local-date.js`, `survey.repository`, `report.service`, seed, `.env.example` (biến mới), Deployment Guide §3.
+
+### TD-32 Cập nhật phụ thuộc có lỗ hổng và kiểm lỗ hổng tự động
+- Phản hồi của GV: không có. Nguồn: checklist bảo mật mục 7 – `npm audit` báo `body-parser` 2.3.0 mức high → **BUG-008**.
+- Quyết định: **SỬA** – nâng `body-parser` lên 2.4.0 (chỉ đổi `package-lock.json`); CI chạy `npm audit --audit-level=high`; tắt header `X-Powered-By` (**BUG-009**).
+- Lý do: đề BT3 yêu cầu "phụ thuộc ghim phiên bản + đã kiểm cảnh báo lỗ hổng"; ghim mà không kiểm thì vẫn giữ nguyên bản có lỗ hổng.
+- Ảnh hưởng: không đổi API; `docs/checklist-bao-mat.md` mục 5, 7.
+
+### TD-33 Đóng gói cho phép thử máy trắng: chạy test bằng Docker, CI, phiên bản 1.0.0
+- Phản hồi của GV: không có (đề BT3 TP4: GV làm đúng Deployment Guide trên máy chưa cài gì, gồm cả bước chạy test).
+- Quyết định: **SỬA** – thêm giai đoạn `test` trong `Dockerfile` và dịch vụ `test` (profile `test`) trong `docker-compose.yml`:
+  `docker compose --profile test run --rm test`; khởi động chính dùng `docker compose up -d --build`; thêm `.github/workflows/ci.yml`; `package.json` 1.0.0.
+- Lý do: máy GV có thể chỉ có Docker, không có Node.js, nên lệnh `npm test` của BT2 không chạy được ở bước 5 của phép thử; CI xác nhận mỗi commit vẫn PASS.
+- Ảnh hưởng: ảnh chạy (`runtime`) không đổi; `.dockerignore` giữ `tests/`, `scripts/` cho giai đoạn test; README mục 3b, Deployment Guide §2, §5.
+
+### TD-34 Bộ tài liệu BT3 và bộ 12 test case có mã
+- Phản hồi của GV: không có (đề BT3 TP1, TP2, TP5, TP6).
+- Quyết định: **SỬA** – thêm `docs/test-plan.md`, `docs/test-report.md`, `tests/test-cases.test.js` (TC-01…TC-12, chạy lại từng case bằng `npm run tc -- TC-xx`),
+  `docs/screenshots/`, `docs/deployment-guide.md`, `docs/checklist-bao-mat.md`, `docs/api-docs/` (tiếng Anh, 17 endpoint, `khao-sat.http`).
+- Lý do: mỗi test case phải truy vết về quy tắc và chạy lại được tại chỗ khi GV chọn ngẫu nhiên; tài liệu bàn giao bằng tiếng Anh (CLO4).
+- Ảnh hưởng: chỉ thêm tệp; tổng số test `npm test` từ 69 lên 87.

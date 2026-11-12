@@ -16,6 +16,8 @@ Phân loại theo cây quyết định của buổi 13: (1) không dùng đượ
 | **BUG-007** | **Major** | Phản hồi 00:00–06:59 giờ VN bị tính sang ngày/tháng trước | **TC-11** | `5520988` |
 | **BUG-008** | **Critical** | body-parser 2.3.0 có lỗ hổng DoS đã công bố | checklist bảo mật mục 7 (`npm audit`) | `7ce09b2` |
 | **BUG-009** | **Minor** | Mọi phản hồi để lộ `X-Powered-By: Express` | checklist bảo mật mục 5 (`curl -i`) | `f474165` |
+| **BUG-010** | **Major** | Mã truy cập khảo sát nằm trong URL (`?t=`) → vào log máy chủ/proxy và lịch sử trình duyệt | đối chiếu tự học buổi 15 (`46a` §1) | `8c6d915` |
+| **BUG-011** | **Minor** | Payload token chứa họ tên nhân viên (ai cầm token cũng đọc được) | đối chiếu tự học buổi 15 (`46a` §3), giải mã thử token | `a1c38ed` |
 
 > **Ghi chú trung thực về BUG-002 và BUG-003:** hai lỗi này được sửa chung trong commit `4d42ba8` (29/10/2026, BT2) – trước khi
 > áp dụng quy tắc "mỗi bug một commit `fix(...) (BUG-xx)`" của buổi 13–14. Em không viết lại lịch sử Git đã nộp ở tag `v0.2`
@@ -120,3 +122,25 @@ Phân loại theo cây quyết định của buổi 13: (1) không dùng đượ
 | 5. Nguyên nhân | Express bật header `X-Powered-By` theo mặc định; `createApp` trong `src/backend/app.js` chưa tắt (chỉ mới lo phần thân phản hồi lỗi trong `error-handler.js`) |
 | 6. Cách sửa | `app.disable('x-powered-by')` ngay sau khi tạo app, trước mọi middleware, nên áp dụng cho cả tệp tĩnh và lỗi 404 |
 | 7. Commit và xác nhận | https://github.com/Ovenvanlang/cdtn1-phoutthavongkhanxay-l8/commit/f4741652a264e46d52e035f48ed6f1057a153ec1 · test "BUG-009: phản hồi không để lộ công nghệ máy chủ qua header X-Powered-By" kiểm 3 loại phản hồi (200, 401, 404) → PASS; `curl -si localhost:3000/health` không còn dòng `X-Powered-By` |
+
+## BUG-010 · Major — Mã truy cập khảo sát nằm trong query string của URL
+| Dòng | Nội dung |
+|---|---|
+| 1. Mã và mức độ | BUG-010 · Major. Câu 1 của cây quyết định: hệ thống vẫn dùng được, dữ liệu không sai, và ở bản chạy hiện tại **chưa có thành phần nào ghi URL** (không có log truy cập, không proxy) nên chưa lộ thật → không phải Critical. Câu 2: chức năng bảo vệ khảo sát (BUG-006) bị yếu đi – khi đặt sau proxy hoặc bật log truy cập, ai đọc log lấy được mã và gửi điểm thay khách → Major |
+| 2. Phát hiện bởi | Đối chiếu mã với tự học buổi 15 (`46a` §1 "Token, mật khẩu, khoá **không bao giờ** trong query string") ngày 12/11/2026; checklist bảo mật mục 1 và 6 |
+| 3. Triệu chứng | Đường dẫn gửi khách là `/khao-sat.html?ticket=8&t=<mã>`; trang gọi `GET/POST /api/surveys/8?t=<mã>` – mã xuất hiện trong mọi URL gửi lên máy chủ và trong lịch sử trình duyệt |
+| 4. Cách tái lập | Ở commit `1210a5d`: `POST /api/surveys` (vai trò he_thong) → xem `survey_link`; mở trang bằng link đó với DevTools → tab Network: request `/api/surveys/8?t=…` chứa mã; `curl -s -X POST "localhost:3000/api/surveys/8?t=<mã>" -d '{"score":5}'` → 200 (API chấp nhận mã trong URL) |
+| 5. Nguyên nhân | Bản sửa BUG-006 chọn cách nhanh nhất là đọc mã từ `req.query.t` (route) và `URLSearchParams(location.search)` (trang), coi mã như một tham số lọc bình thường; thiết kế không tính tới việc URL (khác với header/thân request) bị ghi lại ở log máy chủ, proxy và lịch sử trình duyệt |
+| 6. Cách sửa | Link gửi khách đổi thành `/khao-sat.html?ticket=<id>#t=<mã>` (phần sau `#` trình duyệt không gửi lên máy chủ); API nhận mã qua header `X-Survey-Code`, mã trong `?t=` bị từ chối 400 kể cả khi đúng; trang `khao-sat` đọc mã từ `#t`, giữ trong `sessionStorage` của tab và xóa khỏi thanh địa chỉ; `client.mjs` cho phép header riêng. Cập nhật test, TC-01/02/04/08/10/11, `chay-luong`, API docs, `.http` (TD-37) |
+| 7. Commit và xác nhận | https://github.com/Ovenvanlang/cdtn1-phoutthavongkhanxay-l8/commit/8c6d915027dbab655cb06a7220d16f5b7b739718 · test "BUG-006, BUG-010: … mã trong URL -> 400" PASS; TC-10 PASS (không mã → 400 field `X-Survey-Code`, mã đoán → 404, khách thật → 200); Playwright: mở link `#t=` → form hiện, thanh địa chỉ còn `?ticket=1`, request API không có mã trong URL (header `X-Survey-Code`), tải lại trang vẫn mở được |
+
+## BUG-011 · Minor — Payload của token đăng nhập chứa họ tên nhân viên
+| Dòng | Nội dung |
+|---|---|
+| 1. Mã và mức độ | BUG-011 · Minor – token chỉ nằm trong trình duyệt của chính nhân viên đó, họ tên nhân viên không phải dữ liệu khách hàng, nghiệp vụ vẫn đúng; nhưng trái quy tắc "payload chỉ id, vai trò, thời hạn" (`46a` §3) và sẽ lộ tên nếu token bị chép ra ngoài |
+| 2. Phát hiện bởi | Đối chiếu tự học buổi 15 (`46a` §3, bảng "JWT — bốn lỗi phổ biến") ngày 12/11/2026: giải mã thử phần giữa của token đăng nhập |
+| 3. Triệu chứng | `echo <phần giữa token> \| base64 -d` → `{"sub":2,"name":"Quản lý trung tâm TTBH Quận 10","role":"quan_ly","center_id":1,…}` – đọc được không cần khóa |
+| 4. Cách tái lập | Ở commit `8c6d915`: `POST /api/auth/login` (`quanly.tt01`), lấy `data.token`, giải mã base64url phần thứ hai |
+| 5. Nguyên nhân | `auth.service.issueToken` đưa cả `user.full_name` vào payload để giao diện tiện hiển thị, coi payload như dữ liệu kín; thực ra payload chỉ được **ký** (chống sửa), không được **mã hóa** (không chống đọc). Giao diện cũng không đọc tên từ token (lấy từ `data.user` khi đăng nhập), nên trường này thừa |
+| 6. Cách sửa | Bỏ `name` khỏi payload (còn `sub, role, center_id, iat, exp`); `verifyToken` vẫn trả tên đọc từ CSDL nên `/api/auth/me` không đổi. Cùng đợt rà soát (không phải bug, ghi ở TD-38): khóa `AUTH_SECRET` bắt buộc ≥ 32 ký tự, thời hạn token mặc định 1 giờ, `/health` kiểm cả CSDL – commit `8235ac3` |
+| 7. Commit và xác nhận | https://github.com/Ovenvanlang/cdtn1-phoutthavongkhanxay-l8/commit/a1c38ed0a26fd5b4c000eda1bddfa45127b3eb11 · test "BUG-011: phần payload của token … chỉ có id, vai trò, trung tâm, thời hạn" PASS (kiểm danh sách khóa, không có họ tên, tên vẫn có sau xác thực); `npm test` 90/90 ở bản `v1.0` |

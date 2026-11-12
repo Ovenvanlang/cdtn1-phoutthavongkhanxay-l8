@@ -22,7 +22,7 @@ kiểm soát truy cập (OWASP A01) · chạy lại migration/seed/nạp CSV.
 | API / hệ thống (Express thật + SQLite trong bộ nhớ, gọi HTTP) | 8 | TC-01, 02, 04, 05, 08, 09, 10, 11 | `node:test` + `fetch` |
 
 Ngoài 12 TC trong Test Report còn **bộ hồi quy tự động** (`tests/*.test.js`) chạy cùng lệnh `npm test`: 69 test lúc lập kế hoạch,
-**75 test sau khi sửa BUG-006…009** (mỗi bug thêm test hồi quy riêng) → `npm test` chạy tổng cộng **87 test**.
+**75 test sau khi sửa BUG-006…009**, **78 test ở bản nộp `v1.0`** (thêm test cho BUG-010, BUG-011, khóa `AUTH_SECRET` và `/health`) → `npm test` chạy tổng cộng **90 test**.
 Mỗi bug đã sửa có ít nhất 1 test hồi quy (`docs/bug-log.md`, dòng 7).
 
 **Đủ 5 loại BT3:** luồng đúng ×5 (TC-01 → TC-05) · giá trị biên ×3 (TC-06/TC-07 hai bên ranh giới 5 phản hồi của BS-02; TC-11 ranh giới nửa đêm giờ Việt Nam) ·

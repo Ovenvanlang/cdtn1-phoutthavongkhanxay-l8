@@ -191,8 +191,8 @@ File này được nối tiếp ở BT3 khi nhận phản hồi BT2.
 
 ## Bài tập 3 – kiểm thử và đóng gói (buổi 13–14, 07/11/2026)
 
-> **Phản hồi BT2 của GV: chưa nhận được** tại thời điểm ghi. Khi có phản hồi, mỗi ý sẽ được ghi thành một mục TD mới theo đúng 4 dòng
-> (checklist buổi 14, mục 1). Các mục dưới đây là thay đổi do **test case phát hiện lỗi** và do yêu cầu đóng gói của đề BT3.
+> Phản hồi BT2 của GV **chưa nhận được** tại thời điểm ghi mục này (07/11/2026); đã nhận ngày 12/11/2026 và ghi ở mục
+> "Sau phản hồi Bài tập 2" (TD-35, TD-36) cuối tệp (checklist buổi 14, mục 1). Các mục dưới đây là thay đổi do **test case phát hiện lỗi** và do yêu cầu đóng gói của đề BT3.
 
 ### TD-30 Đường dẫn khảo sát có mã truy cập riêng (đổi hợp đồng API công khai)
 - Phản hồi của GV: không có. Nguồn: test case **TC-10** (bảo mật A01) FAIL ở lần chạy đầu → **BUG-006** (Critical).
@@ -229,3 +229,28 @@ File này được nối tiếp ở BT3 khi nhận phản hồi BT2.
   `docs/screenshots/`, `docs/deployment-guide.md`, `docs/checklist-bao-mat.md`, `docs/api-docs/` (tiếng Anh, 17 endpoint, `khao-sat.http`).
 - Lý do: mỗi test case phải truy vết về quy tắc và chạy lại được tại chỗ khi GV chọn ngẫu nhiên; tài liệu bàn giao bằng tiếng Anh (CLO4).
 - Ảnh hưởng: chỉ thêm tệp; tổng số test `npm test` từ 69 lên 87.
+
+## Sau phản hồi Bài tập 2 (nhận ngày 12/11/2026)
+
+Nhận xét của GV (VLU E-learning), chép nguyên văn:
+> **Điểm mạnh:** Bài rất tốt: khảo sát tạo khi phiếu đóng, form công khai, CSAT theo trung tâm/KTV/thời gian luôn kèm mốc so sánh,
+> danh sách điểm thấp, quản lý tài khoản, 69 kiểm thử đủ ba loại, client API duy nhất xử lý 401, ba trạng thái phân biệt hai kiểu rỗng, Docker.
+> **Cần khắc phục:** Không có lỗi đáng kể. UC7 thông báo điểm thấp đã cắt phạm vi (em đã ghi nhận).
+> **Mục kiểm chứng (bảng 4.2):** đạt đủ các mục chung và mục theo track.
+
+Mỗi nhận xét có một quyết định ghi lại (kể cả khi không sửa):
+
+### TD-35 Giữ nguyên các phần GV đã ghi nhận đạt; không có lỗi BT2 phải sửa
+- Phản hồi của GV: "Không có lỗi đáng kể"; bảng 4.2 đạt đủ mục chung và mục track SE.
+- Quyết định: **GIỮ NGUYÊN** kiến trúc và hành vi đã được ghi nhận (tạo khảo sát khi phiếu đóng, CSAT luôn kèm mốc so sánh, client API
+  duy nhất xử lý 401, ba trạng thái phân biệt hai kiểu rỗng, Docker). Không tạo mục Bug Log nào từ phản hồi BT2.
+- Lý do: phản hồi không chỉ ra lỗi; các thay đổi sau BT2 đều đến từ test case BT3 và đã ghi riêng (TD-30 → TD-34, BUG-006 → BUG-009).
+  Riêng "form công khai" vẫn công khai (không đăng nhập) nhưng từ BT3 cần mã truy cập trong đường dẫn (TD-30) – không đổi trải nghiệm của khách.
+- Ảnh hưởng: không đổi mã; bộ kiểm thử tăng từ 69 (mức GV đã chấm) lên 87 ở BT3.
+
+### TD-36 UC7 (thông báo điểm thấp) tiếp tục nằm ngoài phạm vi ở BT3
+- Phản hồi của GV: "UC7 thông báo điểm thấp đã cắt phạm vi (em đã ghi nhận)" – GV chấp nhận quyết định TD-16.
+- Quyết định: **GIỮ NGUYÊN** việc cắt UC7 trong BT3 (`v1.0`); không viết test cho UC7 (Test Plan mục 1 đã ghi "chủ ý không kiểm").
+- Lý do: lý do của TD-16 vẫn đúng (cần kênh gửi thật, hàng đợi gửi lại và chống gửi trùng); BT3 tập trung kiểm thử và đóng gói phần đã có.
+  Phần thay thế đang chạy: cờ `low_score` (BS-03) và danh sách điểm thấp UC6 để quản lý chủ động gọi lại khách.
+- Ảnh hưởng: README mục 8 và Test Plan giữ ghi chú "cắt khỏi phạm vi"; hướng làm tiếp (CĐTN2): gửi thông báo qua email/Zalo OA khi `low_score = true`.

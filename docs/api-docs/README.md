@@ -3,7 +3,7 @@
 Version 1.0.0 (BT3) · Base URL `http://localhost:3000` (port from `PORT` in `.env`) · JSON over HTTP, UTF-8.
 Request collection you can run by hand: [`khao-sat.http`](khao-sat.http) (VS Code *REST Client* or JetBrains HTTP Client).
 
-Every example below is copied from a **real run** on 07/11/2026 against a fresh database (`npm run db:setup`, seed 42, then `npm start`).
+Every example below is copied from a **real run** on 12/11/2026 (version 1.0.0) against a fresh database (`npm run db:setup`, seed 42, then `npm start`).
 Only two edits were made: JWT-like tokens are shortened to `<token>`, and long arrays are cut after 1–2 items with a note `… (N more)`.
 `sent_at`/`responded_at` values are the server time of that run.
 
@@ -11,11 +11,11 @@ Only two edits were made: JWT-like tokens are shortened to `<token>`, and long a
 
 | Topic | Rule |
 |---|---|
-| Authentication | Staff endpoints need `Authorization: Bearer <token>` from `POST /api/auth/login` (HMAC-SHA256 signed, expires after `TOKEN_TTL_HOURS`, default 8 h). No header = anonymous **customer** (only the public survey endpoints work). |
+| Authentication | Staff endpoints need `Authorization: Bearer <token>` from `POST /api/auth/login` (HMAC-SHA256 signed, expires after `TOKEN_TTL_HOURS`, default 1 h; the payload holds only `sub`, `role`, `center_id`, `iat`, `exp` – no personal data). No header = anonymous **customer**: only the public survey endpoints work, and they need the survey access code in header **`X-Survey-Code`** (never in the URL). |
 | Roles | `he_thong` (system actor that creates surveys), `quan_ly` (centre manager, bound to one centre), `bgd` (board of directors, whole company), `marketing` (company-wide aggregates only). |
 | Success body | `{"data": …}`; list endpoints add `"meta": {"page", "limit", "total"}`. |
 | Error body | `{"error": "<CODE>", "message": "<Vietnamese text for the UI>", "field"?: "<input field>"}` – never a stack trace, SQL or table name. |
-| Error code → HTTP | `DU_LIEU_KHONG_HOP_LE` 400 (invalid input / malformed JSON / body > 10 kB) · `CHUA_DANG_NHAP` 401 · `TOKEN_KHONG_HOP_LE` 401 (bad signature, expired, disabled account) · `SAI_TAI_KHOAN_HOAC_MAT_KHAU` 401 · `KHONG_DU_QUYEN` 403 · `KHONG_TIM_THAY` 404 · `PHIEU_CHUA_DONG`, `DA_KHAO_SAT`, `TEN_DANG_NHAP_DA_TON_TAI`, `KHONG_TU_THAO_TAC`, `PHAI_CON_MOT_BGD` 409 · `LOI_HE_THONG` 500 (unexpected; logged server-side). |
+| Error code → HTTP | `DU_LIEU_KHONG_HOP_LE` 400 (invalid input / malformed JSON / body > 10 kB / access code sent in the URL) · `CHUA_DANG_NHAP` 401 · `TOKEN_KHONG_HOP_LE` 401 (bad signature, expired, disabled account) · `SAI_TAI_KHOAN_HOAC_MAT_KHAU` 401 · `KHONG_DU_QUYEN` 403 · `KHONG_TIM_THAY` 404 · `PHIEU_CHUA_DONG`, `DA_KHAO_SAT`, `TEN_DANG_NHAP_DA_TON_TAI`, `KHONG_TU_THAO_TAC`, `PHAI_CON_MOT_BGD` 409 · `LOI_HE_THONG` 500 (unexpected; logged server-side). |
 | Common 401/403 | Every endpoint marked "login required" returns **401 `CHUA_DANG_NHAP`** without a token, **401 `TOKEN_KHONG_HOP_LE`** with a tampered/expired token, and **403 `KHONG_DU_QUYEN`** for a role not listed. These rows are not repeated in each table. |
 | Pagination | `page` ≥ 1 (default 1), `limit` 1–100 (default 20). |
 | Dates | Query dates are `YYYY-MM-DD` and must exist on the calendar. Timestamps are stored and returned in ISO 8601 UTC; a response is counted on its **Vietnam-time** date (`APP_TIMEZONE`, default `Asia/Ho_Chi_Minh`). |
@@ -25,13 +25,13 @@ Only two edits were made: JWT-like tokens are shortened to `<token>`, and long a
 
 | # | Method & path | Purpose | Who |
 |---|---|---|---|
-| 1 | `GET /health` | Liveness check (Docker HEALTHCHECK) | public |
+| 1 | `GET /health` | Liveness + database check (Docker HEALTHCHECK) | public |
 | 2 | `POST /api/auth/login` | Log in, get a token | public |
 | 3 | `GET /api/auth/me` | Current session | any staff |
 | 4 | `POST /api/surveys` | UC1 – create the survey of a closed ticket | `he_thong` |
 | 5 | `GET /api/surveys` | List surveys/responses (staff) | `quan_ly`, `bgd` |
-| 6 | `GET /api/surveys/:ticketId?t=` | UC2 – customer opens the survey link | customer (link code) |
-| 7 | `POST /api/surveys/:ticketId?t=` | UC2 – customer submits score + comment | customer (link code) |
+| 6 | `GET /api/surveys/:ticketId` | UC2 – customer opens the survey link | customer (`X-Survey-Code`) |
+| 7 | `POST /api/surveys/:ticketId` | UC2 – customer submits score + comment | customer (`X-Survey-Code`) |
 | 8 | `DELETE /api/surveys/:ticketId` | Soft-delete a survey (QT-13) | `quan_ly`, `bgd` |
 | 9 | `GET /api/reports/csat` | UC3 + UC4 – CSAT by centre and technician | `quan_ly`, `bgd`, `marketing` |
 | 10 | `GET /api/reports/trend` | UC5 – CSAT trend by month/quarter | `quan_ly`, `bgd`, `marketing` |
@@ -47,17 +47,17 @@ Only two edits were made: JWT-like tokens are shortened to `<token>`, and long a
 
 ## 1. `GET /health`
 1. **Method & path:** `GET /health`
-2. **Business description:** tells Docker (and the grader) the web server is up; used by the `HEALTHCHECK` in `Dockerfile`.
+2. **Business description:** tells Docker (and the grader) that the web server is up **and** the database answers; used by the `HEALTHCHECK` in `Dockerfile`.
 3. **Authentication:** none.
 4. **Parameters & body:** none.
-5. **Success response:** `200 {"status":"ok"}`
-6. **Error codes:** none defined (if the process is down the connection is refused).
-7. **Notes & limits:** does not query the database; the container is only reported `healthy` after migrations and seed have finished, because the server starts last.
+5. **Success response:** `200 {"status":"ok","db":"up"}`
+6. **Error codes:** `503 {"status":"error","db":"down"}` when the database cannot be queried (no error detail is returned); connection refused if the process is down.
+7. **Notes & limits:** runs `SELECT 1`; the container is only reported `healthy` after migrations and seed have finished, because the server starts last.
 
 ```http
 GET /health
 → 200
-{"status":"ok"}
+{"status":"ok","db":"up"}
 ```
 
 ## 2. `POST /api/auth/login`
@@ -79,7 +79,7 @@ GET /health
 | 400 | `DU_LIEU_KHONG_HOP_LE` (`field`: `username`/`password`) | field missing or not a string; malformed JSON |
 | 401 | `SAI_TAI_KHOAN_HOAC_MAT_KHAU` | wrong username **or** password, or account deactivated (same message – no user enumeration) |
 
-7. **Notes & limits:** passwords are verified against a scrypt hash with a constant-time compare; an unknown username still runs one hash (`DUMMY_HASH`) so timing does not reveal which accounts exist. Token lifetime `TOKEN_TTL_HOURS` (default 8). No rate limiting in this prototype (see security checklist).
+7. **Notes & limits:** passwords are verified against a scrypt hash with a constant-time compare; an unknown username still runs one hash (`DUMMY_HASH`) so timing does not reveal which accounts exist. Token lifetime `TOKEN_TTL_HOURS` (default 1 h); the token payload is readable by anyone holding it, so it carries no name or other personal data (BUG-011). No rate limiting in this prototype (see security checklist).
 
 ```http
 POST /api/auth/login
@@ -87,7 +87,7 @@ Content-Type: application/json
 
 {"username":"bgd","password":"Demo@2026"}
 → 200
-{"data":{"token":"<token>","expires_at":"2026-11-07T02:20:56.000Z",
+{"data":{"token":"<token>","expires_at":"2026-11-12T17:51:48.000Z",
  "user":{"username":"bgd","full_name":"Ban giám đốc","role":"bgd","center_id":null}}}
 
 {"username":"bgd","password":"sai-mat-khau"}
@@ -127,7 +127,7 @@ GET /api/auth/me            (token with its last character changed)
 |---|---|---|---|
 | `ticket_id` | integer (or numeric string) | yes | positive integer |
 
-5. **Success response:** `201 {"data": <survey>}` where `<survey>` = `response_id, ticket_id, ticket_code, center_id, center_name, closed_at, status ("DA_GUI"), sent_at, score (null), comment (null), responded_at (null), low_score (false), survey_link`. `survey_link` = `/khao-sat.html?ticket=<id>&t=<32-hex access code>`.
+5. **Success response:** `201 {"data": <survey>}` where `<survey>` = `response_id, ticket_id, ticket_code, center_id, center_name, closed_at, status ("DA_GUI"), sent_at, score (null), comment (null), responded_at (null), low_score (false), survey_link`. `survey_link` = `/khao-sat.html?ticket=<id>#t=<32-hex access code>` – the code is after `#`, so browsers never send it to any server (BUG-010).
 6. **Error codes:**
 
 | HTTP | `error` | When |
@@ -147,9 +147,9 @@ Content-Type: application/json
 {"ticket_id":8}
 → 201
 {"data":{"response_id":814,"ticket_id":8,"ticket_code":"BH-000008/2025","center_id":1,"center_name":"TTBH Quận 10",
- "closed_at":"2025-01-05T09:46:00.000Z","status":"DA_GUI","sent_at":"2026-11-06T18:20:56.379Z","score":null,
+ "closed_at":"2025-01-05T09:46:00.000Z","status":"DA_GUI","sent_at":"2026-11-12T16:51:48.889Z","score":null,
  "comment":null,"responded_at":null,"low_score":false,
- "survey_link":"/khao-sat.html?ticket=8&t=9dadf7e02d14dc00a89643ffaf59851a"}}
+ "survey_link":"/khao-sat.html?ticket=8#t=1ed7db469217a0ed76511c10d0f1378b"}}
 
 {"ticket_id":8}      (again)  → 409 {"error":"DA_KHAO_SAT","message":"Mỗi phiếu chỉ khảo sát một lần (QT-10)"}
 {"ticket_id":15}     (open)   → 409 {"error":"PHIEU_CHUA_DONG","message":"Chỉ khảo sát phiếu ở trạng thái ĐÃ ĐÓNG (QT-10)"}
@@ -187,8 +187,8 @@ Authorization: Bearer <token of quanly.tt01>
 {"data":[{"response_id":814,"ticket_id":8,"ticket_code":"BH-000008/2025","center_id":1,"center_name":"TTBH Quận 10",
   "closed_at":"2025-01-05T09:46:00.000Z","technician_id":5,"technician_name":"Đặng Quang An",
   "customer_name":"Phạm Đức Châu","customer_phone":"0322506671","status":"DA_TRA_LOI",
-  "sent_at":"2026-11-06T18:20:56.379Z","score":2,"comment":"Sửa lâu, hẹn hai lần mới xong",
-  "responded_at":"2026-11-06T18:20:56.404Z","low_score":true},
+  "sent_at":"2026-11-12T16:51:48.889Z","score":2,"comment":"Sửa lâu, hẹn hai lần mới xong",
+  "responded_at":"2026-11-12T16:51:48.907Z","low_score":true},
   … (1 more)],
  "meta":{"page":1,"limit":2,"total":9}}
 
@@ -196,43 +196,45 @@ GET /api/surveys?center_id=2   (quanly.tt01) → 403 {"error":"KHONG_DU_QUYEN","
 GET /api/surveys?score_max=9   (bgd)         → 400 {"error":"DU_LIEU_KHONG_HOP_LE","message":"score_max phải từ 1 đến 5","field":"score_max"}
 ```
 
-## 6. `GET /api/surveys/:ticketId?t=<code>` — customer opens the link
-1. **Method & path:** `GET /api/surveys/:ticketId?t=<access code>`
+## 6. `GET /api/surveys/:ticketId` — customer opens the link
+1. **Method & path:** `GET /api/surveys/:ticketId` with header `X-Survey-Code: <access code>`
 2. **Business description:** the survey page `khao-sat.html` loads the ticket card (code, centre, closing date) and whether it was already answered.
-3. **Authentication:** no login; the **access code `t`** from the link is required and must match this survey.
+3. **Authentication:** no login; the **access code** from the link (`#t=…`) is required in header `X-Survey-Code` and must match this survey. The page `khao-sat.html` reads it from the link and sends it.
 4. **Parameters:**
 
 | Name | In | Required | Rule |
 |---|---|---|---|
 | `ticketId` | path | yes | positive integer |
-| `t` | query | yes | exactly 32 lowercase hex characters |
+| `X-Survey-Code` | header | yes | exactly 32 lowercase hex characters |
+| `t` | query | **must be absent** | a code in the URL is rejected (400), even a correct one |
 
 5. **Success response:** `200 {"data": <survey without survey_link>}` – no customer name, phone or technician.
 6. **Error codes:**
 
 | HTTP | `error` | When |
 |---|---|---|
-| 400 | `DU_LIEU_KHONG_HOP_LE` (`field: t` or `ticket_id`) | code missing / malformed; bad ticket id |
+| 400 | `DU_LIEU_KHONG_HOP_LE` (`field: X-Survey-Code`, `t` or `ticket_id`) | code missing / malformed; code sent as `?t=`; bad ticket id |
 | 404 | `KHONG_TIM_THAY` | wrong code, unknown ticket, or survey soft-deleted – **same answer** so an attacker cannot tell which |
 
-7. **Notes & limits:** codes are compared in constant time. The code does not expire in this version (a survey can only be answered once anyway, QT-10).
+7. **Notes & limits:** codes are compared in constant time. The code never travels in a URL that reaches the server, so it is not written to server/proxy access logs (BUG-010). It does not expire in this version (a survey can only be answered once anyway, QT-10).
 
 ```http
-GET /api/surveys/8?t=9dadf7e02d14dc00a89643ffaf59851a
+GET /api/surveys/8
+X-Survey-Code: 1ed7db469217a0ed76511c10d0f1378b
 → 200
 {"data":{"response_id":814,"ticket_id":8,"ticket_code":"BH-000008/2025","center_id":1,"center_name":"TTBH Quận 10",
- "closed_at":"2025-01-05T09:46:00.000Z","status":"DA_GUI","sent_at":"2026-11-06T18:20:56.379Z","score":null,
+ "closed_at":"2025-01-05T09:46:00.000Z","status":"DA_GUI","sent_at":"2026-11-12T16:51:48.889Z","score":null,
  "comment":null,"responded_at":null,"low_score":false}}
 
-GET /api/surveys/8                                  → 400 {"error":"DU_LIEU_KHONG_HOP_LE","message":"Thiếu mã truy cập t trong đường dẫn khảo sát","field":"t"}
-GET /api/surveys/8?t=00000000000000000000000000000000 → 404 {"error":"KHONG_TIM_THAY","message":"Khảo sát không khả dụng"}
+GET /api/surveys/8   (no header)                    → 400 {"error":"DU_LIEU_KHONG_HOP_LE","message":"Thiếu mã truy cập khảo sát (header X-Survey-Code)","field":"X-Survey-Code"}
+GET /api/surveys/8   X-Survey-Code: 000…0 (guessed)   → 404 {"error":"KHONG_TIM_THAY","message":"Khảo sát không khả dụng"}
 ```
 
-## 7. `POST /api/surveys/:ticketId?t=<code>` — UC2 submit response
-1. **Method & path:** `POST /api/surveys/:ticketId?t=<access code>`
+## 7. `POST /api/surveys/:ticketId` — UC2 submit response
+1. **Method & path:** `POST /api/surveys/:ticketId` with header `X-Survey-Code: <access code>`
 2. **Business description:** the customer rates the service 1–5 with an optional comment; scores ≤ 2 are flagged `low_score` for follow-up (BS-03).
-3. **Authentication:** no login; access code `t` required (as endpoint 6).
-4. **Parameters & body:** path/query as endpoint 6, plus body:
+3. **Authentication:** no login; access code required in header `X-Survey-Code` (as endpoint 6).
+4. **Parameters & body:** path and header as endpoint 6, plus body:
 
 | Field | Type | Required | Rule |
 |---|---|---|---|
@@ -244,25 +246,27 @@ GET /api/surveys/8?t=00000000000000000000000000000000 → 404 {"error":"KHONG_TI
 
 | HTTP | `error` | When |
 |---|---|---|
-| 400 | `DU_LIEU_KHONG_HOP_LE` (`field: score` / `comment` / `t`) | score missing/out of range/not integer; comment > 500 or not a string; code missing; malformed JSON |
+| 400 | `DU_LIEU_KHONG_HOP_LE` (`field: score` / `comment` / `X-Survey-Code` / `t`) | score missing/out of range/not integer; comment > 500 or not a string; code missing; code sent in the URL; malformed JSON |
 | 404 | `KHONG_TIM_THAY` | wrong code, unknown or soft-deleted survey |
 | 409 | `DA_KHAO_SAT` | already answered – the first answer is kept (QT-10, also safe under concurrent submits) |
 
 7. **Notes & limits:** the response date used by reports is the Vietnam-time date of `responded_at` (BUG-007). Body limit 10 kB.
 
 ```http
-POST /api/surveys/8?t=9dadf7e02d14dc00a89643ffaf59851a
+POST /api/surveys/8
+X-Survey-Code: 1ed7db469217a0ed76511c10d0f1378b
 Content-Type: application/json
 
 {"score":2,"comment":"Sửa lâu, hẹn hai lần mới xong"}
 → 200
 {"data":{"response_id":814,"ticket_id":8,"ticket_code":"BH-000008/2025","center_id":1,"center_name":"TTBH Quận 10",
- "closed_at":"2025-01-05T09:46:00.000Z","status":"DA_TRA_LOI","sent_at":"2026-11-06T18:20:56.379Z","score":2,
- "comment":"Sửa lâu, hẹn hai lần mới xong","responded_at":"2026-11-06T18:20:56.404Z","low_score":true}}
+ "closed_at":"2025-01-05T09:46:00.000Z","status":"DA_TRA_LOI","sent_at":"2026-11-12T16:51:48.889Z","score":2,
+ "comment":"Sửa lâu, hẹn hai lần mới xong","responded_at":"2026-11-12T16:51:48.907Z","low_score":true}}
 
 {"score":6}                    → 400 {"error":"DU_LIEU_KHONG_HOP_LE","message":"score là bắt buộc, phải là số nguyên từ 1 đến 5","field":"score"}
 {"score":5}   (second time)    → 409 {"error":"DA_KHAO_SAT","message":"Mỗi phiếu chỉ khảo sát một lần (QT-10)"}
-POST /api/surveys/8 (no t)     → 400 {"error":"DU_LIEU_KHONG_HOP_LE","message":"Thiếu mã truy cập t trong đường dẫn khảo sát","field":"t"}
+POST /api/surveys/8 (no header) → 400 {"error":"DU_LIEU_KHONG_HOP_LE","message":"Thiếu mã truy cập khảo sát (header X-Survey-Code)","field":"X-Survey-Code"}
+POST /api/surveys/8?t=1ed7…378b (correct code, but in the URL) → 400 {"error":"DU_LIEU_KHONG_HOP_LE","message":"Không gửi mã truy cập trong URL; dùng header X-Survey-Code","field":"t"}
 ```
 
 ## 8. `DELETE /api/surveys/:ticketId` — soft delete
@@ -325,7 +329,7 @@ Authorization: Bearer <token of bgd>
  "comparison":{"previous":{"from":"2026-08-31","to":"2026-09-30","total_responses":4,"csat_percent":75,"avg_score":4,"low_score_count":1},
    "csat_delta":25,
    "company":{"from":"2026-10-01","to":"2026-10-31","total_responses":15,"csat_percent":66.7,"avg_score":3.67,"low_score_count":3}}},
- "meta":{"generated_at":"2026-11-06T18:20:56.438Z"}}
+ "meta":{"generated_at":"2026-11-12T16:51:48.936Z"}}
 
 GET /api/reports/csat?from=2024-01-01&to=2024-01-31 (bgd) → 200 … "total_responses":0,"csat_percent":null,"warning":"CHUA_CO_PHAN_HOI" …
 GET /api/reports/csat?center_id=1   (marketing)  → 403 {"error":"KHONG_DU_QUYEN","message":"Marketing chỉ xem số liệu tổng hợp toàn hệ thống (BS-05)"}
@@ -357,7 +361,7 @@ Authorization: Bearer <token of quanly.tt01>
 {"data":{"filters":{"center_id":1,"granularity":"quarter","year":2026},
  "year_summary":{"from":"2026-01-01","to":"2026-12-31","total_responses":30,"csat_percent":76.7,"avg_score":3.97,"low_score_count":4},
  "points":[{"period":1,"label":"Q1/2026","total_responses":8,"csat_percent":75,"avg_score":4,"warning":null}, … (3 more)]},
- "meta":{"generated_at":"2026-11-06T18:20:56.453Z","min_sample":5}}
+ "meta":{"generated_at":"2026-11-12T16:51:48.950Z","min_sample":5}}
 
 GET /api/reports/trend?granularity=week → 400 {"error":"DU_LIEU_KHONG_HOP_LE","message":"granularity phải là một trong: month, quarter","field":"granularity"}
 ```

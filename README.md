@@ -16,9 +16,9 @@ Quản lý xem được danh sách phản hồi điểm thấp để gọi lại
 Ban giám đốc quản lý tài khoản nội bộ.
 
 Tài liệu BT3: [`docs/test-plan.md`](docs/test-plan.md) · [`docs/test-report.md`](docs/test-report.md) (12 test case, ảnh trong `docs/screenshots/`) ·
-[`docs/bug-log.md`](docs/bug-log.md) (BUG-001 → BUG-009) · [`docs/deployment-guide.md`](docs/deployment-guide.md) · [`docs/checklist-bao-mat.md`](docs/checklist-bao-mat.md) ·
+[`docs/bug-log.md`](docs/bug-log.md) (BUG-001 → BUG-011) · [`docs/deployment-guide.md`](docs/deployment-guide.md) · [`docs/checklist-bao-mat.md`](docs/checklist-bao-mat.md) ·
 [`docs/api-docs/`](docs/api-docs/README.md) (API docs tiếng Anh + `khao-sat.http`).
-Tài liệu thiết kế: `docs/srs.md` (SRS) · `docs/thay-doi-thiet-ke.md` (nhật ký thay đổi, TD-01 → TD-34) · `docs/architecture-thuc-te.png`
+Tài liệu thiết kế: `docs/srs.md` (SRS) · `docs/thay-doi-thiet-ke.md` (nhật ký thay đổi, TD-01 → TD-38) · `docs/architecture-thuc-te.png`
 (kiến trúc đã hiện thực) · `docs/erd-thuc-te.png` · `docs/anh-xa-kien-truc.md` · `docs/anh-man-hinh.md` · `docs/ket-qua-chay-mau.txt` · `docs/ai-disclosure.md`.
 
 ## 2. Yêu cầu môi trường
@@ -37,12 +37,12 @@ Tài liệu thiết kế: `docs/srs.md` (SRS) · `docs/thay-doi-thiet-ke.md` (nh
 | 3 | Cài thư viện đúng phiên bản khóa | `npm ci` | cài xong, không biên dịch native |
 | 4 | Tạo tệp cấu hình | `cp .env.example .env` (Windows CMD: `copy .env.example .env`) | có tệp `.env` |
 | 5 | Dựng CSDL từ trống + dữ liệu mẫu | `npm run db:setup` | `Đã chạy migration: 001…006`, `1200 phiếu`, 4 tài khoản demo |
-| 6 | Chạy bộ test | `npm test` | `# tests 87` · `# pass 87` · `# fail 0` |
+| 6 | Chạy bộ test | `npm test` | `# tests 90` · `# pass 90` · `# fail 0` |
 | 7 | Chạy thử trọn luồng | `npm run chay-luong` | `== TOÀN BỘ LUỒNG CHẠY XONG, KHÔNG CÓ BƯỚC NÀO THẤT BẠI ==` |
 | 8 | Khởi động máy chủ | `npm start` | `API khảo sát CSAT chạy tại http://localhost:3000` |
 | 9 | Mở giao diện | trình duyệt vào `http://localhost:3000` | trang chủ với 3 màn hình |
 
-**Kiểm tra hệ thống đã chạy đúng:** `http://localhost:3000/health` trả `{"status":"ok"}`; đăng nhập `bgd` / `Demo@2026` → trang
+**Kiểm tra hệ thống đã chạy đúng:** `http://localhost:3000/health` trả `{"status":"ok","db":"up"}`; đăng nhập `bgd` / `Demo@2026` → trang
 **Báo cáo CSAT** hiện 4 thẻ số liệu kèm "so với kỳ trước". Chạy lại bước 5 lần hai: `CSDL đã ở phiên bản mới nhất`, `Đã có dữ liệu, bỏ qua` – không lỗi, không nhân đôi.
 
 ### 3b. Chạy bằng Docker (2 lệnh)
@@ -73,7 +73,7 @@ npm run dev                      # chạy có tự khởi động lại khi sử
 
 ## 4. Kiểm thử
 ```bash
-npm test                   # toàn bộ 87 test (12 test case của Test Report + 75 test hồi quy)
+npm test                   # toàn bộ 90 test (12 test case của Test Report + 78 test hồi quy)
 npm run tc                 # chỉ 12 test case TC-01…TC-12, in kết quả thực tế
 npm run tc -- TC-07        # chạy lại đúng một test case (khi GV chọn ngẫu nhiên)
 docker compose --profile test run --rm test   # như npm test, trên máy chỉ có Docker
@@ -111,7 +111,7 @@ migrations/                   # 001–006: dựng CSDL từ trống, chạy lạ
 seeds/seed.js                 # dữ liệu mô phỏng bám case study, seed = 42
 data/sample/                  # mẫu chép nguyên văn từ bộ CSV chính thức (xem data/sample/README.md)
 scripts/                      # chạy trọn luồng end-to-end; chạy lại 1 test case (chay-tc.js); trích mẫu CSV
-tests/                        # 87 test (node:test); test-cases.test.js = 12 TC của Test Report
+tests/                        # 90 test (node:test); test-cases.test.js = 12 TC của Test Report
 docs/                         # SRS, sơ đồ, Test Plan/Report, Bug Log, Deployment Guide, checklist bảo mật, api-docs/, ảnh chụp
 Dockerfile, docker-compose.yml # ảnh chạy + giai đoạn test (profile test)
 .github/workflows/ci.yml      # CI
@@ -147,7 +147,7 @@ Tài liệu đầy đủ (tiếng Anh, 7 mục/endpoint, ví dụ chạy thật)
 |---|---|---|
 | `POST /api/auth/login` · `GET /api/auth/me` | công khai · đã đăng nhập | đăng nhập · thông tin phiên |
 | `POST /api/surveys` `{"ticket_id":149}` | `he_thong` | UC1: tạo khảo sát cho phiếu ĐÃ ĐÓNG |
-| `GET /api/surveys/:ticketId?t=<mã>` · `POST /api/surveys/:ticketId?t=<mã>` `{"score":4,"comment":"..."}` | khách (mã `t` trong đường dẫn) | UC2: khách xem form · gửi phản hồi (TD-30) |
+| `GET /api/surveys/:ticketId` · `POST /api/surveys/:ticketId` `{"score":4,"comment":"..."}`, header `X-Survey-Code: <mã>` | khách (mã sau `#t=` trong đường dẫn gửi khách, TD-37) | UC2: khách xem form · gửi phản hồi (TD-30) |
 | `GET /api/surveys?status=&center_id=&score_max=&page=&limit=` · `DELETE /api/surveys/:ticketId` | `quan_ly`, `bgd` | danh sách (QT-14) · xóa mềm (QT-13) |
 | `GET /api/reports/csat?center_id=&from=&to=` | `quan_ly`, `bgd`, `marketing` | UC3 + UC4 + mốc so sánh |
 | `GET /api/reports/trend?granularity=month\|quarter&year=&center_id=` | `quan_ly`, `bgd`, `marketing` | UC5 + CSAT trung bình năm |
@@ -169,7 +169,8 @@ curl -s -X POST localhost:3000/api/users -H "Authorization: Bearer $TOKEN" -H "C
 
 ## 8. Trạng thái (BT3 – tag `v1.0`)
 - [x] Test Plan, 12 test case chạy thật (lần 1: 10 PASS / 2 FAIL → sửa → 12/12), ảnh `docs/screenshots/`
-- [x] Bug Log 9 lỗi; BT3: BUG-006 (Critical, A01), BUG-007 (Major), BUG-008 (Critical, phụ thuộc), BUG-009 (Minor) – mỗi lỗi một commit `fix(...)`
+- [x] Bug Log 11 lỗi; BT3: BUG-006 (Critical, A01), BUG-007 (Major), BUG-008 (Critical, phụ thuộc), BUG-009 (Minor), BUG-010 (Major, mã trong URL), BUG-011 (Minor, payload token) – mỗi lỗi một commit `fix(...)`
+- [x] Đối chiếu tự học buổi 15–16: khóa `AUTH_SECRET` ≥ 32 ký tự, token 1 giờ, `/health` kiểm CSDL, Deployment Guide có HTTPS + cảnh báo, checklist có lệnh tự kiểm
 - [x] Docker 2 lệnh + healthcheck + dữ liệu mẫu tự nạp; chạy test bằng Docker; CI GitHub Actions
 - [x] Deployment Guide, API docs (tiếng Anh), checklist bảo mật 7 mục có minh chứng
 

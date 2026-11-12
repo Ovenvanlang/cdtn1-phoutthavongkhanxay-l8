@@ -128,7 +128,7 @@ QT-14 với tài khoản: tài khoản `quan_ly` bắt buộc gắn đúng một
 | FR-07 | US7 | UC7 | SHOULD | NFR3 | QT-14, BS-03 | — (cắt, TD-16) |
 | FR-S1 | — | — | (hỗ trợ) | NFR3 | QT-13, QT-14, TK-01..03 | `tests/user.service.test.js`, `tests/user.api.test.js`, `tests/auth.service.test.js` (token của tài khoản đã khóa) |
 
-Chạy toàn bộ: `npm test` (87 test ở BT3, gồm 12 test case TC-01…TC-12 của `docs/test-report.md`). Dữ liệu vào: `tests/import-csv.test.js`, `tests/seed.test.js`; giao diện: `tests/frontend.test.js`.
+Chạy toàn bộ: `npm test` (90 test ở bản `v1.0`, gồm 12 test case TC-01…TC-12 của `docs/test-report.md`). Dữ liệu vào: `tests/import-csv.test.js`, `tests/seed.test.js`; giao diện: `tests/frontend.test.js`.
 
 ---
 
@@ -146,9 +146,9 @@ Bản tiếng Anh đầy đủ 7 mục cho từng endpoint, kèm ví dụ chạy
 |---|---|---|---|
 | `POST /api/auth/login` body `{username, password}` | công khai | Đăng nhập, trả `{token, expires_at, user}` | 200; 400; 401 `SAI_TAI_KHOAN_HOAC_MAT_KHAU` |
 | `GET /api/auth/me` | đã đăng nhập | Thông tin phiên hiện tại | 200; 401 |
-| `POST /api/surveys` body `{ticket_id}` | `he_thong` | UC1: tạo khảo sát cho phiếu ĐÃ ĐÓNG; trả thêm `survey_link` = `/khao-sat.html?ticket=<id>&t=<mã truy cập 32 hex>` để gửi cho khách (TD-30) | 201; 400; 401; 403; 404; 409 `PHIEU_CHUA_DONG` / `DA_KHAO_SAT` |
-| `GET /api/surveys/:ticketId?t=<mã>` | khách (không đăng nhập, phải có mã `t`) | Khách mở form; không lộ thông tin khách | 200; 400 (thiếu/sai dạng `t`); 404 (sai mã, không có, đã xóa – cùng một câu trả lời) |
-| `POST /api/surveys/:ticketId?t=<mã>` body `{score, comment?}` | khách (phải có mã `t`) | UC2: gửi phản hồi | 200; 400; 404; 409 `DA_KHAO_SAT` |
+| `POST /api/surveys` body `{ticket_id}` | `he_thong` | UC1: tạo khảo sát cho phiếu ĐÃ ĐÓNG; trả thêm `survey_link` = `/khao-sat.html?ticket=<id>#t=<mã truy cập 32 hex>` để gửi cho khách (TD-30; mã sau `#` không đi lên máy chủ – TD-37) | 201; 400; 401; 403; 404; 409 `PHIEU_CHUA_DONG` / `DA_KHAO_SAT` |
+| `GET /api/surveys/:ticketId` + header `X-Survey-Code: <mã>` | khách (không đăng nhập, phải có mã) | Khách mở form; không lộ thông tin khách | 200; 400 (thiếu/sai dạng mã, hoặc mã nằm trong URL `?t=`); 404 (sai mã, không có, đã xóa – cùng một câu trả lời) |
+| `POST /api/surveys/:ticketId` + header `X-Survey-Code: <mã>`, body `{score, comment?}` | khách (phải có mã) | UC2: gửi phản hồi | 200; 400; 404; 409 `DA_KHAO_SAT` |
 | `GET /api/surveys?status=&center_id=&score_max=&page=&limit=` | `quan_ly`, `bgd` | Danh sách (số điện thoại đầy đủ theo QT-15); quản lý bị ép theo trung tâm mình | 200; 400; 401; 403 |
 | `DELETE /api/surveys/:ticketId` | `quan_ly`, `bgd` | Xóa mềm (QT-13) | 200; 401; 403; 404 |
 | `GET /api/reports/csat?center_id=&from=&to=` | `quan_ly`, `bgd`, `marketing` | UC3 + UC4: CSAT, phân bố điểm, bảng theo kỹ thuật viên, mốc so sánh (BS-06). Mặc định từ đầu năm đến hôm nay | 200; 400; 401; 403; 404 |

@@ -254,3 +254,21 @@ Mỗi nhận xét có một quyết định ghi lại (kể cả khi không sử
 - Lý do: lý do của TD-16 vẫn đúng (cần kênh gửi thật, hàng đợi gửi lại và chống gửi trùng); BT3 tập trung kiểm thử và đóng gói phần đã có.
   Phần thay thế đang chạy: cờ `low_score` (BS-03) và danh sách điểm thấp UC6 để quản lý chủ động gọi lại khách.
 - Ảnh hưởng: README mục 8 và Test Plan giữ ghi chú "cắt khỏi phạm vi"; hướng làm tiếp (CĐTN2): gửi thông báo qua email/Zalo OA khi `low_score = true`.
+
+## Đối chiếu tự học buổi 15–16 trước khi nộp BT3 (12/11/2026)
+
+### TD-37 Mã truy cập khảo sát đi trong header `X-Survey-Code`, không trong URL
+- Phản hồi của GV: không có. Nguồn: tự học buổi 15 `46a` §1 ("token, mật khẩu, khóa không bao giờ trong query string") → **BUG-010** (Major).
+- Quyết định: **SỬA** – đường dẫn gửi khách `khao-sat.html?ticket=<id>#t=<mã>`; API `GET/POST /api/surveys/:ticketId` nhận mã qua header
+  `X-Survey-Code`, mã trong `?t=` bị từ chối 400; trang khảo sát đọc mã từ `#t`, giữ trong `sessionStorage` của tab, xóa khỏi thanh địa chỉ.
+- Lý do: URL bị ghi vào log máy chủ/proxy và lịch sử trình duyệt; phần sau `#` không bao giờ được gửi lên máy chủ. Vẫn giữ quyết định TD-30
+  (khách không đăng nhập, đường dẫn là "chìa khóa"), chỉ đổi chỗ đặt mã.
+- Ảnh hưởng: hợp đồng API công khai đổi lần 2 (SRS Phụ lục A, API docs, `.http`); `client.mjs` cho phép header riêng; test, TC, `chay-luong`.
+
+### TD-38 Siết cấu hình xác thực và `/health` theo bài 46/46a
+- Phản hồi của GV: không có. Nguồn: tự học buổi 15 `46a` §3 (JWT – bốn lỗi phổ biến) và `46` §1 (`/health` có trạng thái CSDL).
+- Quyết định: **SỬA** – (1) payload token bỏ họ tên (**BUG-011**); (2) server không chạy khi `AUTH_SECRET` < 32 ký tự; (3) thời hạn token mặc định
+  1 giờ (`TOKEN_TTL_HOURS=1`, trước 8); (4) `/health` chạy `SELECT 1` và trả `{"status":"ok","db":"up"}` / `503 db down`.
+- Lý do: payload chỉ được ký, không được mã hóa; khóa ngắn dò được; token sống lâu khó thu hồi; healthcheck chỉ kiểm tiến trình web thì báo "healthy"
+  cả khi CSDL hỏng. Không làm refresh token (chưa có cookie) – ghi ở "Known gaps" của checklist bảo mật.
+- Ảnh hưởng: `.env.example` (`TOKEN_TTL_HOURS=1`), Deployment Guide §3, §5, §7, §8; `tests/health-startup.test.js`; nhân viên phải đăng nhập lại sau 1 giờ.

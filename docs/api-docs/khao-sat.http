@@ -5,7 +5,7 @@
 @base = http://localhost:3000
 @password = Demo@2026
 
-### 1. Health check -> 200 {"status":"ok"}
+### 1. Health check -> 200 {"status":"ok","db":"up"}
 GET {{base}}/health
 
 ### 2. Log in as each role (tokens are captured by name)
@@ -67,7 +67,8 @@ Content-Type: application/json
 {"ticket_id": {{ticket}}}
 
 ###
-# the access code is the "t" parameter of survey_link, e.g. /khao-sat.html?ticket=8&t=9dad…851a – paste it here:
+# the access code is the part after "#t=" in survey_link, e.g. /khao-sat.html?ticket=8#t=1ed7…378b – paste it here.
+# It is sent in header X-Survey-Code, never in the URL (BUG-010).
 @t = PASTE_THE_32_HEX_CODE_FROM_survey_link
 
 ### 4b. Same ticket again -> 409 DA_KHAO_SAT (QT-10)
@@ -84,35 +85,46 @@ Content-Type: application/json
 
 {"ticket_id": {{ticket}}}
 
-### 5. UC2 – customer opens the link (no login, needs t) -> 200
-GET {{base}}/api/surveys/{{ticket}}?t={{t}}
+### 5. UC2 – customer opens the link (no login, needs the access code) -> 200
+GET {{base}}/api/surveys/{{ticket}}
+X-Survey-Code: {{t}}
 
-### 5b. A01 check (TC-10 by hand): ticket id only, no code -> 400 field t
+### 5b. A01 check (TC-10 by hand): ticket id only, no code -> 400 field X-Survey-Code
 POST {{base}}/api/surveys/{{ticket}}
 Content-Type: application/json
 
 {"score":1,"comment":"đánh giá giả"}
 
 ### 5c. A01 check: guessed code -> 404 KHONG_TIM_THAY, survey unchanged
-POST {{base}}/api/surveys/{{ticket}}?t=00000000000000000000000000000000
+POST {{base}}/api/surveys/{{ticket}}
+X-Survey-Code: 00000000000000000000000000000000
 Content-Type: application/json
 
 {"score":1,"comment":"đánh giá giả"}
 
-### 6. Invalid score -> 400 field score
+### 5d. BUG-010 check: correct code but in the URL -> 400 field t
 POST {{base}}/api/surveys/{{ticket}}?t={{t}}
+Content-Type: application/json
+
+{"score":5}
+
+### 6. Invalid score -> 400 field score
+POST {{base}}/api/surveys/{{ticket}}
+X-Survey-Code: {{t}}
 Content-Type: application/json
 
 {"score":6}
 
 ### 7. UC2 – customer submits -> 200 DA_TRA_LOI, low_score true
-POST {{base}}/api/surveys/{{ticket}}?t={{t}}
+POST {{base}}/api/surveys/{{ticket}}
+X-Survey-Code: {{t}}
 Content-Type: application/json
 
 {"score":2,"comment":"Sửa lâu, hẹn hai lần mới xong"}
 
 ### 7b. Second answer -> 409 DA_KHAO_SAT, first answer kept
-POST {{base}}/api/surveys/{{ticket}}?t={{t}}
+POST {{base}}/api/surveys/{{ticket}}
+X-Survey-Code: {{t}}
 Content-Type: application/json
 
 {"score":5}

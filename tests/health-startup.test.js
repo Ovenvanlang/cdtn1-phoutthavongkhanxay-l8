@@ -14,7 +14,7 @@ const SERVER = path.join(__dirname, '..', 'src', 'backend', 'server.js');
 function chayServer(secret) {
   const tep = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'csat-start-')), 'k.db');
   return spawnSync(process.execPath, ['--disable-warning=ExperimentalWarning', SERVER], {
-    env: { ...process.env, AUTH_SECRET: secret, DATABASE_FILE: tep, PORT: '0' }, encoding: 'utf8', timeout: 10000,
+    env: { ...process.env, AUTH_SECRET: secret, DATABASE_FILE: tep, PORT: '0' }, encoding: 'utf8', timeout: 30000,     // máy chậm (ổ mạng, OneDrive) khởi động node mất vài giây
   });
 }
 

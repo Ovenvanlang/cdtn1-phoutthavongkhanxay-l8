@@ -42,6 +42,15 @@ test('Đăng nhập đúng -> token mang đúng vai trò và trung tâm (QT-14)'
   assert.strictEqual(payload.userId, 7);
 });
 
+test('BUG-011: phần payload của token (đọc được không cần khóa) chỉ có id, vai trò, trung tâm, thời hạn', () => {
+  const { service } = setup();
+  const { token } = service.login({ username: 'ql1', password: MAT_KHAU });
+  const docDuoc = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+  assert.deepStrictEqual(Object.keys(docDuoc).sort(), ['center_id', 'exp', 'iat', 'role', 'sub']);
+  assert.ok(!JSON.stringify(docDuoc).includes('Quản lý'), 'không chứa họ tên');
+  assert.strictEqual(service.verifyToken(token).name, 'Quản lý TTBH Quận 10', 'tên vẫn có sau khi xác thực (đọc từ CSDL)');
+});
+
 test('Ngoại lệ đăng nhập: sai mật khẩu / không có tài khoản / tài khoản đã khóa -> cùng một mã lỗi', () => {
   const { service } = setup();
   assert.throws(() => service.login({ username: 'ql1', password: 'sai' }),

@@ -21,9 +21,10 @@ function createAuthService({ userRepo, secret, ttlHours = 8, now = () => new Dat
 
   function issueToken(user) {
     const iat = Math.floor(now().getTime() / 1000);
+    // Payload chỉ base64 – ai cầm token cũng đọc được: chỉ để id, vai trò, trung tâm và thời hạn,
+    // KHÔNG họ tên hay dữ liệu cá nhân (BUG-011). Tên hiển thị lấy từ CSDL khi xác thực.
     const payload = {
       sub: user.user_id,
-      name: user.full_name,
       role: user.role,
       center_id: user.center_id ?? null,
       iat,

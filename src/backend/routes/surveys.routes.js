@@ -17,14 +17,17 @@ function createSurveyRoutes(service) {
     res.json(service.list(req.user, v.listQuery(req.query)));
   });
 
-  // Read một khảo sát – khách mở đường dẫn ?t=<mã truy cập> (không đăng nhập, không lộ thông tin khách)
+  // Mã truy cập của khách đi trong header (không trong URL – BUG-010)
+  const code = (req) => v.accessToken(req.get(v.SURVEY_CODE_HEADER), req.query.t);
+
+  // Read một khảo sát – khách mở đường dẫn trong tin nhắn (không đăng nhập, không lộ thông tin khách)
   r.get('/:ticketId', (req, res) => {
-    res.json({ data: service.getByTicket(v.ticketId(req.params.ticketId), v.accessToken(req.query.t)) });
+    res.json({ data: service.getByTicket(v.ticketId(req.params.ticketId), code(req)) });
   });
 
   // Update (UC2) – khách gửi phản hồi { score, comment } qua đúng đường dẫn của mình
   r.post('/:ticketId', (req, res) => {
-    res.json({ data: service.submit(v.ticketId(req.params.ticketId), v.accessToken(req.query.t), v.submitBody(req.body)) });
+    res.json({ data: service.submit(v.ticketId(req.params.ticketId), code(req), v.submitBody(req.body)) });
   });
 
   // Delete mềm (QT-13)

@@ -1,9 +1,12 @@
 // API khảo sát (ứng với routes/surveys.routes.js).
 import { request } from './client.mjs';
 
-/** UC2 – khách mở form bằng đường dẫn trong tin nhắn: không đăng nhập nhưng phải có mã truy cập t. */
+/** Mã truy cập đi trong header, KHÔNG trong URL (BUG-010). */
+const maTruyCap = (accessToken) => ({ 'X-Survey-Code': accessToken });
+
+/** UC2 – khách mở form bằng đường dẫn trong tin nhắn: không đăng nhập nhưng phải có mã truy cập. */
 export async function getByTicket(ticketId, accessToken) {
-  const res = await request(`/api/surveys/${encodeURIComponent(ticketId)}`, { auth: false, query: { t: accessToken } });
+  const res = await request(`/api/surveys/${encodeURIComponent(ticketId)}`, { auth: false, headers: maTruyCap(accessToken) });
   return res.data;
 }
 
@@ -12,7 +15,7 @@ export async function submit(ticketId, accessToken, { score, comment }) {
   const res = await request(`/api/surveys/${encodeURIComponent(ticketId)}`, {
     method: 'POST',
     auth: false,
-    query: { t: accessToken },
+    headers: maTruyCap(accessToken),
     body: { score, comment: comment || undefined },
   });
   return res.data;

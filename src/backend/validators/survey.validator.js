@@ -7,12 +7,20 @@ const STATUSES = ['DA_GUI', 'DA_TRA_LOI'];
 
 const ticketId = (value) => positiveInt(value, 'ticket_id');
 
-/** Mã truy cập trong đường dẫn khảo sát gửi cho khách (?t=…): 32 ký tự hex (BUG-006). */
-function accessToken(value) {
-  if (isMissing(value)) throw E.invalid('Thiếu mã truy cập t trong đường dẫn khảo sát', 't');
-  if (typeof value !== 'string' || !/^[0-9a-f]{32}$/.test(value))
-    throw E.invalid('Mã truy cập t trong đường dẫn khảo sát không hợp lệ', 't');
-  return value;
+/** Tên header mang mã truy cập khảo sát (BUG-006, BUG-010). */
+const SURVEY_CODE_HEADER = 'X-Survey-Code';
+
+/**
+ * Mã truy cập khảo sát: 32 ký tự hex, gửi trong header X-Survey-Code.
+ * KHÔNG nhận mã trong query string (?t=…): URL bị ghi vào log máy chủ/proxy và lịch sử trình duyệt (BUG-010).
+ */
+function accessToken(headerValue, queryValue) {
+  if (!isMissing(queryValue))
+    throw E.invalid(`Không gửi mã truy cập trong URL; dùng header ${SURVEY_CODE_HEADER}`, 't');
+  if (isMissing(headerValue)) throw E.invalid(`Thiếu mã truy cập khảo sát (header ${SURVEY_CODE_HEADER})`, SURVEY_CODE_HEADER);
+  if (typeof headerValue !== 'string' || !/^[0-9a-f]{32}$/.test(headerValue))
+    throw E.invalid(`Mã truy cập khảo sát không hợp lệ (header ${SURVEY_CODE_HEADER})`, SURVEY_CODE_HEADER);
+  return headerValue;
 }
 
 /** POST /api/surveys  { ticket_id } */
@@ -44,4 +52,4 @@ function listQuery(query = {}) {
   };
 }
 
-module.exports = { ticketId, accessToken, createBody, submitBody, listQuery, MAX_COMMENT };
+module.exports = { ticketId, accessToken, SURVEY_CODE_HEADER, createBody, submitBody, listQuery, MAX_COMMENT };

@@ -77,10 +77,10 @@ function buildUrl(path, query) {
 
 /**
  * Gọi API. Luôn trả về phần thân JSON hoặc ném ApiError có mã lỗi ổn định.
- * @param {{method?:string, body?:object, query?:object, auth?:boolean}} options
+ * @param {{method?:string, body?:object, query?:object, auth?:boolean, headers?:object}} options
  */
-export async function request(path, { method = 'GET', body, query, auth = true } = {}) {
-  const headers = {};
+export async function request(path, { method = 'GET', body, query, auth = true, headers: extra = {} } = {}) {
+  const headers = { ...extra };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const token = auth ? getToken() : null;
   if (token) headers.Authorization = `Bearer ${token}`;

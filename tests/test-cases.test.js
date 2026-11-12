@@ -42,9 +42,10 @@ async function dungMoiTruong(t, { now } = {}) {
   const server = createApp({ db, now, authSecret: 'khoa-test-case-bt3' }).listen(0);
   await new Promise((r) => server.once('listening', r));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const call = async (method, url, { token, body, raw } = {}) => {
+  const call = async (method, url, { token, body, raw, code } = {}) => {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
+    if (code) headers['X-Survey-Code'] = code;              // mã truy cập khảo sát của khách (BUG-010)
     const res = await fetch(base + url, { method, headers, body: raw ?? (body ? JSON.stringify(body) : undefined) });
     return { status: res.status, json: await res.json() };
   };
@@ -70,12 +71,12 @@ test('TC-01 [Luồng đúng · QT-10] hệ thống tạo khảo sát cho phiếu
   assert.strictEqual(r.json.data.status, 'DA_GUI');
   assert.strictEqual(r.json.data.score, null);
   assert.strictEqual(sau, truoc + 1);
-  assert.match(r.json.data.survey_link, /^\/khao-sat\.html\?ticket=1&t=[0-9a-f]{32}$/, 'đường dẫn gửi khách phải có mã truy cập');
+  assert.match(r.json.data.survey_link, /^\/khao-sat\.html\?ticket=1#t=[0-9a-f]{32}$/, 'đường dẫn gửi khách phải có mã truy cập');
 });
 
 test('TC-02 [Luồng đúng · UC2, BS-03] khách mở đúng đường dẫn và gửi 2 điểm -> 200, DA_TRA_LOI, low_score = true', async (t) => {
   const { db, call } = await dungMoiTruong(t);
-  const r = await call('POST', `/api/surveys/2?t=${lienKet(db, 2)}`, { body: { score: 2, comment: 'Trả máy trễ hẹn 3 ngày' } });
+  const r = await call('POST', '/api/surveys/2', { code: lienKet(db, 2), body: { score: 2, comment: 'Trả máy trễ hẹn 3 ngày' } });
   const dong = db.prepare('SELECT status, score, comment FROM survey_response WHERE ticket_id = 2').get();
   t.diagnostic(`HTTP ${r.status} · status=${r.json.data?.status} · low_score=${r.json.data?.low_score} · CSDL: ${dong.status}, score=${dong.score}, comment="${dong.comment}"`);
   assert.strictEqual(r.status, 200);
@@ -106,7 +107,7 @@ test('TC-04 [Luồng đúng · QT-13] BGĐ xóa khảo sát -> 200; khách mở 
   const { db, call, token, dem } = await dungMoiTruong(t);
   const truoc = dem('SELECT COUNT(*) n FROM survey_response');
   const xoa = await call('DELETE', '/api/surveys/2', { token: await token('bgd') });
-  const moLai = await call('GET', `/api/surveys/2?t=${lienKet(db, 2)}`);
+  const moLai = await call('GET', '/api/surveys/2', { code: lienKet(db, 2) });
   const dong = db.prepare('SELECT is_deleted FROM survey_response WHERE ticket_id = 2').get();
   t.diagnostic(`DELETE -> HTTP ${xoa.status} ${JSON.stringify(xoa.json.data)} · GET lại -> HTTP ${moLai.status} ${moLai.json.error} · survey_response ${truoc} -> ${dem('SELECT COUNT(*) n FROM survey_response')}, is_deleted=${dong.is_deleted}`);
   assert.strictEqual(xoa.status, 200);
@@ -154,7 +155,7 @@ test('TC-07 [Biên · BS-02] 4 phản hồi -> gắn MAU_CHUA_DU_TIN_CAY nhưng 
 // ---------------------------------------------------------------- 3. DỮ LIỆU SAI (kiểm mã trạng thái VÀ thông báo VÀ tác dụng phụ)
 test('TC-08 [Dữ liệu sai · FR-02] gửi phản hồi thiếu điểm -> 400 nêu rõ trường score; khảo sát không đổi', async (t) => {
   const { db, call } = await dungMoiTruong(t);
-  const r = await call('POST', `/api/surveys/2?t=${lienKet(db, 2)}`, { body: { comment: 'Quên chấm điểm' } });
+  const r = await call('POST', '/api/surveys/2', { code: lienKet(db, 2), body: { comment: 'Quên chấm điểm' } });
   const dong = db.prepare('SELECT status, score FROM survey_response WHERE ticket_id = 2').get();
   t.diagnostic(`HTTP ${r.status} · ${JSON.stringify(r.json)} · CSDL: status=${dong.status}, score=${dong.score}`);
   assert.strictEqual(r.status, 400);
@@ -179,7 +180,7 @@ test('TC-09 [Dữ liệu sai] gửi JSON hỏng khi tạo tài khoản -> 400 th
 test('TC-10 [Bảo mật · A01] người lạ đoán ticket_id rồi gửi điểm cho khảo sát của khách khác -> bị từ chối, khảo sát không đổi', async (t) => {
   const { db, call } = await dungMoiTruong(t);
   const khongMa = await call('POST', '/api/surveys/2', { body: { score: 1, comment: 'đánh giá giả' } });
-  const maDoan = await call('POST', `/api/surveys/2?t=${'0'.repeat(32)}`, { body: { score: 1, comment: 'đánh giá giả' } });
+  const maDoan = await call('POST', '/api/surveys/2', { code: '0'.repeat(32), body: { score: 1, comment: 'đánh giá giả' } });
   const dong = db.prepare('SELECT status, score FROM survey_response WHERE ticket_id = 2').get();
   t.diagnostic(`không có mã -> HTTP ${khongMa.status} ${khongMa.json.error || khongMa.json.data?.status} · mã đoán -> HTTP ${maDoan.status} ${maDoan.json.error || maDoan.json.data?.status} · CSDL: status=${dong.status}, score=${dong.score}`);
   assert.ok([400, 404].includes(khongMa.status), `không có mã phải bị từ chối, nhận ${khongMa.status}`);
@@ -187,7 +188,7 @@ test('TC-10 [Bảo mật · A01] người lạ đoán ticket_id rồi gửi đi�
   assert.deepStrictEqual({ ...dong }, { status: 'DA_GUI', score: null });
 
   // Bước 3 (sau BUG-006): bản sửa KHÔNG được làm hỏng luồng đúng – khách thật mở đúng đường dẫn vẫn gửi được
-  const khachThat = await call('POST', `/api/surveys/2?t=${lienKet(db, 2)}`, { body: { score: 4 } });
+  const khachThat = await call('POST', '/api/surveys/2', { code: lienKet(db, 2), body: { score: 4 } });
   t.diagnostic(`khách thật đúng mã -> HTTP ${khachThat.status} ${khachThat.json.data?.status} score=${khachThat.json.data?.score}`);
   assert.strictEqual(khachThat.status, 200);
   assert.strictEqual(khachThat.json.data.score, 4);
@@ -199,9 +200,9 @@ test('TC-11 [Biên · UC5] phản hồi 23:59 ngày 31/10 và 00:30 ngày 01/11 
   const { db, call, token } = await dungMoiTruong(t, { now: () => bayGio });
   await call('POST', '/api/surveys', { token: await token('hethong'), body: { ticket_id: 1 } });
   bayGio = new Date('2026-10-31T16:59:00Z');                       // 23:59 31/10 giờ Việt Nam
-  await call('POST', `/api/surveys/1?t=${lienKet(db, 1)}`, { body: { score: 5 } });
+  await call('POST', '/api/surveys/1', { code: lienKet(db, 1), body: { score: 5 } });
   bayGio = new Date('2026-10-31T17:30:00Z');                       // 00:30 01/11 giờ Việt Nam
-  await call('POST', `/api/surveys/2?t=${lienKet(db, 2)}`, { body: { score: 4 } });
+  await call('POST', '/api/surveys/2', { code: lienKet(db, 2), body: { score: 4 } });
   const ngay = db.prepare('SELECT ticket_id, responded_date FROM survey_response ORDER BY ticket_id').all().map((r) => ({ ...r }));
   const xh = await call('GET', '/api/reports/trend?year=2026', { token: await token('bgd') });
   const theoThang = Object.fromEntries(xh.json.data.points.map((p) => [p.period, p.total_responses]));

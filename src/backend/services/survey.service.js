@@ -6,8 +6,12 @@ const { safeEqual } = require('../utils/password');
 
 const LOW_SCORE = 2; // BS-03
 
-/** Đường dẫn gửi cho khách: phải có mã truy cập riêng, không đoán được từ ticket_id (BUG-006). */
-const surveyLink = (ticketId, token) => `/khao-sat.html?ticket=${ticketId}&t=${token}`;
+/**
+ * Đường dẫn gửi cho khách: có mã truy cập riêng, không đoán được từ ticket_id (BUG-006).
+ * Mã nằm sau dấu # (fragment) – trình duyệt KHÔNG gửi phần này lên máy chủ nên mã không vào log (BUG-010);
+ * trang khao-sat đọc mã rồi gửi trong header X-Survey-Code.
+ */
+const surveyLink = (ticketId, token) => `/khao-sat.html?ticket=${ticketId}#t=${token}`;
 
 function createSurveyService({ surveyRepo, ticketRepo, now = () => new Date() }) {
   function present(row) {

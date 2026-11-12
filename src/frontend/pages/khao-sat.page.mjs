@@ -94,19 +94,31 @@ function moKhaoSat(ticketId, maTruyCap) {
   );
 }
 
+// Mã truy cập (BUG-010): đường dẫn gửi khách có dạng khao-sat.html?ticket=231#t=<mã>. Phần sau # không được gửi lên
+// máy chủ; trang đọc mã, giữ trong sessionStorage của tab rồi xóa khỏi thanh địa chỉ để mã không nằm trong lịch sử duyệt web.
+const khoaMa = (ticketId) => `csat.survey.${ticketId}`;
+function nhoMa(ticketId, ma) {
+  try { sessionStorage.setItem(khoaMa(ticketId), ma); } catch { /* chặn lưu trữ: chỉ dùng trong lần mở này */ }
+}
+function maDaNho(ticketId) {
+  try { return sessionStorage.getItem(khoaMa(ticketId)); } catch { return null; }
+}
+
 formTim.addEventListener('submit', (ev) => {
   ev.preventDefault();
   const ma = oMaPhieu.value.trim();
   const t = oMaTruyCap.value.trim().toLowerCase();
   if (!ma || !t) { ds.empty('Nhập mã phiếu và mã truy cập trong đường dẫn để mở khảo sát.'); return; }
-  history.replaceState(null, '', `?ticket=${encodeURIComponent(ma)}&t=${encodeURIComponent(t)}`);
+  nhoMa(ma, t);
+  history.replaceState(null, '', `?ticket=${encodeURIComponent(ma)}`);
   moKhaoSat(ma, t);
 });
 
-const thamSo = new URLSearchParams(location.search);
-const tuLienKet = thamSo.get('ticket');
-const maTrongLienKet = thamSo.get('t');
+const tuLienKet = new URLSearchParams(location.search).get('ticket');
+const maTrongLienKet = new URLSearchParams(location.hash.slice(1)).get('t') || (tuLienKet && maDaNho(tuLienKet));
 if (tuLienKet && maTrongLienKet) {
+  nhoMa(tuLienKet, maTrongLienKet);
+  history.replaceState(null, '', `?ticket=${encodeURIComponent(tuLienKet)}`);   // bỏ #t=… khỏi thanh địa chỉ
   // Khách mở đúng đường dẫn trong tin nhắn: ẩn ô tra mã, hiện thẳng phiếu như bản thiết kế
   formTim.hidden = true;
   oMaPhieu.value = tuLienKet;

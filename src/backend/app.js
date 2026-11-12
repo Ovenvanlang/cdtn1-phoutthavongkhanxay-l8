@@ -39,7 +39,15 @@ function createApp({ db, now, authSecret = config.authSecret, tokenTtlHours = co
   const reportService = createReportService({ reportRepo, centerRepo, surveyService, now });
   const userService = createUserService({ userRepo, centerRepo });
 
-  app.get('/health', (req, res) => res.json({ status: 'ok' }));
+  // Docker HEALTHCHECK và bước "Verify it works" của Deployment Guide: kiểm cả CSDL, không chỉ tiến trình web
+  app.get('/health', (req, res) => {
+    try {
+      db.prepare('SELECT 1').get();
+      res.json({ status: 'ok', db: 'up' });
+    } catch {
+      res.status(503).json({ status: 'error', db: 'down' });            // không trả chi tiết lỗi CSDL
+    }
+  });
 
   // Mọi API đi qua Access Middleware: đọc token -> req.user (không có token = khách hàng)
   app.use('/api', createAttachUser(authService));

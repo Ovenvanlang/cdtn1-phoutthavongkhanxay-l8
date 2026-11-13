@@ -21,7 +21,7 @@ const { createUserRoutes } = require('./routes/users.routes');
 const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
 const NODE_MODULES = path.join(__dirname, '..', '..', 'node_modules');
 
-function createApp({ db, now, authSecret = config.authSecret, tokenTtlHours = config.tokenTtlHours } = {}) {
+function createApp({ db, now, authSecret = config.authSecret, tokenTtlHours = config.tokenTtlHours, commit = config.appCommit } = {}) {
   const app = express();
   app.disable('x-powered-by');            // không quảng cáo "Express" trong mọi phản hồi (BUG-009, OWASP A02)
   app.use(express.json({ limit: '10kb' }));
@@ -43,7 +43,8 @@ function createApp({ db, now, authSecret = config.authSecret, tokenTtlHours = co
   app.get('/health', (req, res) => {
     try {
       db.prepare('SELECT 1').get();
-      res.json({ status: 'ok', db: 'up' });
+      // commit (7 ký tự) giúp CI biết bản vừa deploy đã thực sự chạy trên Render (TD-39); chỉ có khi được đặt
+      res.json({ status: 'ok', db: 'up', ...(commit && { commit: String(commit).slice(0, 7) }) });
     } catch {
       res.status(503).json({ status: 'error', db: 'down' });            // không trả chi tiết lỗi CSDL
     }

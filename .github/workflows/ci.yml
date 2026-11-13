@@ -1,5 +1,8 @@
-# CI: mỗi lần push / mở pull request lên main -> cài đúng phiên bản khóa trong package-lock.json,
-# chạy toàn bộ test (12 test case BT3 + bộ hồi quy) và kiểm lỗ hổng phụ thuộc (checklist bảo mật mục 7, BUG-008).
+# CI/CD: mỗi lần push / mở pull request lên main
+#   1) job test  : cài đúng phiên bản trong package-lock.json, chạy toàn bộ test (12 test case BT3 + hồi quy),
+#                  chạy lại db:setup lần 2 (C8) và kiểm lỗ hổng phụ thuộc (checklist bảo mật mục 7)
+#   2) job deploy: CHỈ khi push lên main và job test đã PASS -> gọi Render Deploy Hook để triển khai đúng commit
+#                  vừa kiểm, rồi chờ tới khi /health trên Render báo đúng commit đó (Deployment Guide §8, TD-39)
 name: CI
 
 on:
@@ -11,6 +14,11 @@ on:
 
 permissions:
   contents: read
+
+# Hai lần push sát nhau: chỉ deploy bản mới nhất
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -40,3 +48,40 @@ jobs:
 
       - name: Kiểm lỗ hổng phụ thuộc (mức high trở lên làm đỏ build)
         run: npm audit --audit-level=high
+
+  deploy:
+    needs: test                                   # test đỏ thì KHÔNG deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}   # bí mật, đặt ở Settings → Secrets and variables → Actions
+      APP_URL: https://cdtn1-phoutthavongkhanxay-l8.onrender.com
+    steps:
+      - name: Gọi Render Deploy Hook cho đúng commit vừa kiểm
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::notice::Chưa có secret RENDER_DEPLOY_HOOK_URL – bỏ qua bước deploy"
+            echo "SKIP_DEPLOY=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          # Không in URL hook ra log (là bí mật); chỉ in mã HTTP
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "${RENDER_DEPLOY_HOOK_URL}&ref=${GITHUB_SHA}")
+          echo "Render deploy hook -> HTTP $code"
+          case "$code" in 200|201|202) ;; *) echo "::error::Render từ chối deploy (HTTP $code)"; exit 1 ;; esac
+
+      - name: Chờ bản mới chạy trên Render (/health báo đúng commit)
+        if: env.SKIP_DEPLOY != '1'
+        run: |
+          want="${GITHUB_SHA:0:7}"
+          for i in $(seq 1 40); do                # tối đa ~13 phút (build Docker + khởi động)
+            body=$(curl -s --max-time 20 "$APP_URL/health" || true)
+            echo "lần $i: $body"
+            if echo "$body" | grep -q "\"commit\":\"$want\"" && echo "$body" | grep -q '"db":"up"'; then
+              echo "::notice::Đã deploy commit $want lên $APP_URL"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::Hết thời gian chờ: $APP_URL/health chưa báo commit $want"
+          exit 1

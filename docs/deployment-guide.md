@@ -143,7 +143,7 @@ The same `Dockerfile` runs unchanged on Render's free plan. Live URL: **https://
 
 | # | Step (Render dashboard) | Value |
 |---|---|---|
-| 1 | Sign in to render.com with GitHub → **New → Web Service** → pick repository `cdtn1-phoutthavongkhanxay-l8`, branch `main` | auto-deploy on every push to `main` |
+| 1 | Sign in to render.com with GitHub → **New → Web Service** → pick repository `cdtn1-phoutthavongkhanxay-l8`, branch `main` | deploys are triggered by GitHub Actions (below) |
 | 2 | Runtime / Instance type / Region | **Docker** (uses `./Dockerfile`, last stage = runtime image) · **Free** · Singapore (closest to Vietnam) |
 | 3 | Environment variables (set in the dashboard, **never** in the repository or the image) | see table below |
 | 4 | Advanced → Health Check Path | `/health` |
@@ -159,6 +159,16 @@ The same `Dockerfile` runs unchanged on Render's free plan. Live URL: **https://
 
 **Verify it works on Render:** `curl -s https://cdtn1-phoutthavongkhanxay-l8.onrender.com/health` → `{"status":"ok","db":"up"}`; open the URL → home page
 "Khảo sát hài lòng CSAT (luồng L8)"; log in `bgd` / `Demo@2026` → CSAT report with data. HTTPS is provided by Render's proxy (see §7).
+
+**Continuous deployment with GitHub Actions** (`.github/workflows/ci.yml`, job `deploy`): every push to `main` first runs job `test`
+(`npm test`, `db:setup` twice, `npm audit`); only if it passes, job `deploy` calls Render's deploy hook for **that exact commit**
+(`…&ref=<sha>`) and waits until `GET /health` on Render returns `"commit":"<first 7 chars of the sha>"` (Render sets `RENDER_GIT_COMMIT`;
+locally the field is absent). A failing test therefore never reaches the public demo. One-time setup:
+1. Render → service → **Settings → Build & Deploy → Auto-Deploy: Off** (otherwise Render also deploys on its own, before tests finish).
+2. Render → service → **Settings → Deploy Hook** → copy the URL (it is a secret: anyone with it can trigger deploys).
+3. GitHub → repository → **Settings → Secrets and variables → Actions → New repository secret**: name `RENDER_DEPLOY_HOOK_URL`, value = that URL.
+4. Push to `main` (or **Actions → CI → Run workflow**) → tab **Actions** shows `test` ✓ then `deploy` ✓ "Đã deploy commit … lên https://…onrender.com".
+Without the secret the `deploy` job only prints a notice and stays green (e.g. in a fork).
 
 **Free-plan limits (accepted for a demo):** the service sleeps after 15 minutes without traffic and needs about a minute to wake up – open the
 URL shortly before it is checked; the filesystem is ephemeral, so the SQLite database is re-created from the seed on every restart/redeploy

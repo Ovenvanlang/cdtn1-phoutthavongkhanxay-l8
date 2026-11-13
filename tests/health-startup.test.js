@@ -39,6 +39,13 @@ test('/health kiểm cả CSDL: up -> 200 {status ok, db up}; CSDL hỏng -> 503
   assert.strictEqual(up.status, 200);
   assert.deepStrictEqual(await up.json(), { status: 'ok', db: 'up' });
 
+  // Có phiên bản mã (Render đặt RENDER_GIT_COMMIT) -> /health trả thêm 7 ký tự đầu của commit để CI đối chiếu
+  const coCommit = createApp({ db, authSecret: 'x'.repeat(32), commit: '5abd010c3f4098f5320391b9d35daff87718c1de' }).listen(0);
+  await new Promise((r) => coCommit.once('listening', r));
+  const ban = await (await fetch(`http://localhost:${coCommit.address().port}/health`)).json();
+  coCommit.close();
+  assert.deepStrictEqual(ban, { status: 'ok', db: 'up', commit: '5abd010' });
+
   db.close();                                                      // giả lập CSDL không dùng được
   const loiGoc = console.error; console.error = () => {};          // lỗi 500 vẫn ghi log máy chủ; tắt in trong test
   try {

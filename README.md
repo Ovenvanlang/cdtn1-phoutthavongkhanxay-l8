@@ -19,7 +19,7 @@ Ban giám đốc quản lý tài khoản nội bộ.
 Tài liệu BT3: [`docs/test-plan.md`](docs/test-plan.md) · [`docs/test-report.md`](docs/test-report.md) (12 test case, ảnh trong `docs/screenshots/`) ·
 [`docs/bug-log.md`](docs/bug-log.md) (BUG-001 → BUG-011) · [`docs/deployment-guide.md`](docs/deployment-guide.md) · [`docs/checklist-bao-mat.md`](docs/checklist-bao-mat.md) ·
 [`docs/api-docs/`](docs/api-docs/README.md) (API docs tiếng Anh + `khao-sat.http`).
-Tài liệu thiết kế: `docs/srs.md` (SRS) · `docs/thay-doi-thiet-ke.md` (nhật ký thay đổi, TD-01 → TD-38) · `docs/architecture-thuc-te.png`
+Tài liệu thiết kế: `docs/srs.md` (SRS) · `docs/thay-doi-thiet-ke.md` (nhật ký thay đổi, TD-01 → TD-39) · `docs/architecture-thuc-te.png`
 (kiến trúc đã hiện thực) · `docs/erd-thuc-te.png` · `docs/anh-xa-kien-truc.md` · `docs/anh-man-hinh.md` · `docs/ket-qua-chay-mau.txt` · `docs/ai-disclosure.md`.
 
 ## 2. Yêu cầu môi trường
@@ -79,8 +79,9 @@ npm run tc                 # chỉ 12 test case TC-01…TC-12, in kết quả th
 npm run tc -- TC-07        # chạy lại đúng một test case (khi GV chọn ngẫu nhiên)
 docker compose --profile test run --rm test   # như npm test, trên máy chỉ có Docker
 ```
-Mọi test chạy trên CSDL SQLite trong bộ nhớ (TC-12 dùng tệp tạm), tự dựng dữ liệu – không phụ thuộc dữ liệu trên máy. CI: `.github/workflows/ci.yml`
-(npm test, chạy lại `db:setup` lần 2, `npm audit`). Kế hoạch và kết quả: `docs/test-plan.md`, `docs/test-report.md`. Ví dụ theo loại (BT2):
+Mọi test chạy trên CSDL SQLite trong bộ nhớ (TC-12 dùng tệp tạm), tự dựng dữ liệu – không phụ thuộc dữ liệu trên máy. CI/CD: `.github/workflows/ci.yml`
+– job `test` (npm test, chạy lại `db:setup` lần 2, `npm audit`), rồi job `deploy` chỉ chạy khi test PASS: gọi Render deploy hook và chờ `/health`
+trên Render báo đúng commit (Deployment Guide §8). Kế hoạch và kết quả: `docs/test-plan.md`, `docs/test-report.md`. Ví dụ theo loại (BT2):
 
 | Loại | Ví dụ (tệp) |
 |---|---|

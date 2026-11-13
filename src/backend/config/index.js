@@ -38,6 +38,9 @@ module.exports = {
   // Mật khẩu của 4 tài khoản DEMO do seed tạo ra (chỉ dùng cho môi trường học tập).
   demoPassword: process.env.DEMO_PASSWORD || 'Demo@2026',
 
+  // Phiên bản mã đang chạy: Render tự đặt RENDER_GIT_COMMIT; nơi khác có thể đặt APP_COMMIT. Không có thì /health không trả trường này.
+  appCommit: process.env.APP_COMMIT || process.env.RENDER_GIT_COMMIT || null,
+
   authSecretProblem,
   MIN_AUTH_SECRET_LENGTH,
 };

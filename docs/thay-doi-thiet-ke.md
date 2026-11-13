@@ -272,3 +272,13 @@ Mỗi nhận xét có một quyết định ghi lại (kể cả khi không sử
 - Lý do: payload chỉ được ký, không được mã hóa; khóa ngắn dò được; token sống lâu khó thu hồi; healthcheck chỉ kiểm tiến trình web thì báo "healthy"
   cả khi CSDL hỏng. Không làm refresh token (chưa có cookie) – ghi ở "Known gaps" của checklist bảo mật.
 - Ảnh hưởng: `.env.example` (`TOKEN_TTL_HOURS=1`), Deployment Guide §3, §5, §7, §8; `tests/health-startup.test.js`; nhân viên phải đăng nhập lại sau 1 giờ.
+
+### TD-39 Triển khai thử tự động qua GitHub Actions (CI/CD) lên Render
+- Phản hồi của GV: không có. Nguồn: điểm cộng deploy thử của đề BT3 (mục 3.3) + nhu cầu "chỉ đưa lên bản đã qua test".
+- Quyết định: **THÊM** – bản chạy thử công khai https://cdtn1-phoutthavongkhanxay-l8.onrender.com (Render, gói miễn phí, Docker);
+  `ci.yml` thêm job `deploy` (`needs: test`, chỉ khi push lên `main`) gọi Render Deploy Hook với `ref=<sha>` và chờ `/health` báo đúng commit;
+  `/health` trả thêm `commit` (7 ký tự) khi có biến `RENDER_GIT_COMMIT`/`APP_COMMIT`. Auto-Deploy của Render tắt.
+- Lý do: deploy theo từng push của Render chạy song song với CI nên bản chưa qua test vẫn có thể lên; deploy hook trong CI bảo đảm thứ tự
+  test → deploy và CI xác nhận được bản nào đang chạy. URL hook là bí mật, lưu ở GitHub Secrets, không in ra log.
+- Ảnh hưởng: `ci.yml`, `app.js` (`/health`), `config` (`appCommit`), `tests/health-startup.test.js`; Deployment Guide §8; README mục 4. Chạy
+  local và Docker không đổi (`/health` vẫn là `{"status":"ok","db":"up"}`).

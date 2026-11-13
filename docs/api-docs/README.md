@@ -52,7 +52,7 @@ Only two edits were made: JWT-like tokens are shortened to `<token>`, and long a
 4. **Parameters & body:** none.
 5. **Success response:** `200 {"status":"ok","db":"up"}`
 6. **Error codes:** `503 {"status":"error","db":"down"}` when the database cannot be queried (no error detail is returned); connection refused if the process is down.
-7. **Notes & limits:** runs `SELECT 1`; the container is only reported `healthy` after migrations and seed have finished, because the server starts last.
+7. **Notes & limits:** runs `SELECT 1`; the container is only reported `healthy` after migrations and seed have finished, because the server starts last. When the deployed commit is known (`RENDER_GIT_COMMIT` on Render, or `APP_COMMIT`) the body adds `"commit":"<7 chars>"`, which CI uses to confirm a deploy (TD-39); locally the field is absent.
 
 ```http
 GET /health

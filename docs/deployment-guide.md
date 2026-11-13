@@ -6,7 +6,9 @@ The system is one container: an Express 5 API that also serves the web UI, with 
 On first start the container creates the database (migrations 001–006) and loads reproducible sample data automatically.
 **From an empty folder the system starts with 2 commands** (section 2, steps 3–4). Sections follow the course template:
 1 Requirements · 2 Setup steps · 3 Environment variables · 4 Sample data · 5 Verify it works · 6 Troubleshooting · 7 HTTPS for a real deployment ·
-8 Monitoring & alerts (optional).
+8 Public deployment on Render (optional) · 9 Monitoring & alerts (optional).
+
+**Live demo (free tier, may need ~1 minute to wake up):** https://cdtn1-phoutthavongkhanxay-l8.onrender.com – log in `bgd` / `Demo@2026`.
 
 ## 1. Requirements
 
@@ -136,7 +138,34 @@ The prototype runs on `http://localhost` only; no certificate is installed. For 
 - Generate a new `AUTH_SECRET` (≥ 32 random bytes) and keep it in the platform's secret store, never in the image or the repository.
 - Survey links sent to customers must use `https://`; the access code stays after `#` so it is never sent to the proxy or written to its logs.
 
-## 8. Monitoring & alerts (optional – not required by BT3)
+## 8. Public deployment on Render (optional – BT3 bonus)
+The same `Dockerfile` runs unchanged on Render's free plan. Live URL: **https://cdtn1-phoutthavongkhanxay-l8.onrender.com** (deployed 13/11/2026 from branch `main`).
+
+| # | Step (Render dashboard) | Value |
+|---|---|---|
+| 1 | Sign in to render.com with GitHub → **New → Web Service** → pick repository `cdtn1-phoutthavongkhanxay-l8`, branch `main` | auto-deploy on every push to `main` |
+| 2 | Runtime / Instance type / Region | **Docker** (uses `./Dockerfile`, last stage = runtime image) · **Free** · Singapore (closest to Vietnam) |
+| 3 | Environment variables (set in the dashboard, **never** in the repository or the image) | see table below |
+| 4 | Advanced → Health Check Path | `/health` |
+| 5 | Docker Command / Pre-Deploy Command | leave **empty** – the image's `CMD` already runs migrations → seed → server on every start |
+| 6 | **Deploy web service**, wait for status **Live** (build ≈ 3–5 min) | Logs show `Đã chạy migration …`, `Đã nạp dữ liệu mẫu (seed=42) …` |
+
+| Variable on Render | Value | Why |
+|---|---|---|
+| `AUTH_SECRET` | a **new** random key (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`), different from `.env.example` and from any local `.env` | signs tokens; the server refuses to start without it or if it is < 32 characters |
+| `PORT` | `3000` | the image listens on 3000 (`EXPOSE 3000`, Docker `HEALTHCHECK`); Render routes public HTTPS traffic to it |
+| `TOKEN_TTL_HOURS` | `1` | short-lived tokens |
+| `DEMO_PASSWORD` | `Demo@2026` | lets the grader log in; all data on the demo is simulated |
+
+**Verify it works on Render:** `curl -s https://cdtn1-phoutthavongkhanxay-l8.onrender.com/health` → `{"status":"ok","db":"up"}`; open the URL → home page
+"Khảo sát hài lòng CSAT (luồng L8)"; log in `bgd` / `Demo@2026` → CSAT report with data. HTTPS is provided by Render's proxy (see §7).
+
+**Free-plan limits (accepted for a demo):** the service sleeps after 15 minutes without traffic and needs about a minute to wake up – open the
+URL shortly before it is checked; the filesystem is ephemeral, so the SQLite database is re-created from the seed on every restart/redeploy
+(always the same sample data; anything entered on the demo is lost); 750 free instance hours per month. A real deployment would use a persistent
+disk or a managed database.
+
+## 9. Monitoring & alerts (optional – not required by BT3)
 Monitoring available today: `GET /health` (app + database, used by the Docker healthcheck), the container log (`docker compose logs app`) which
 records start-up and every unexpected 500 error, and the business data itself (low-score list, UC6). There is no metrics server in v1.0.
 

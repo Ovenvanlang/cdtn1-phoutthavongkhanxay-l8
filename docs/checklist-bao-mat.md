@@ -27,6 +27,8 @@ OWASP codes use the Top 10:2025 mapping of the course (`46_packaging_deployment_
   accounts of the sample data, intentionally public so the grader can log in (stored hashed, like every password).
 - Test-only keys inside `tests/` (e.g. `authSecret: 'khoa-test-case-bt3'`) sign tokens for in-memory test databases only.
 - The server refuses to start without `AUTH_SECRET` or with a key shorter than 32 characters, and the message never prints the key (`tests/health-startup.test.js`).
+- Public demo on Render (Deployment Guide §8): `AUTH_SECRET` is a separate random key entered in Render's environment-variable settings – it is not
+  in the repository, the image or any screenshot.
 
 ### 2. Input validated at the application layer (A05) — ĐÃ LÀM
 - Every route calls a validator before the service: `routes/*.js` → `validators/{auth,survey,report,user}.validator.js`. Rules: positive integers, real

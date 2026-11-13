@@ -7,7 +7,8 @@ Chuyên đề tốt nghiệp 1 · Track SE · PHOUTTHAVONG Khanxay – 237480201
 cp .env.example .env
 docker compose up -d --build
 ```
-Mở `http://localhost:3000` (đăng nhập `bgd` / `Demo@2026`). Chạy test bằng Docker: `docker compose --profile test run --rm test`.
+Mở `http://localhost:3000` (đăng nhập `bgd` / `Demo@2026`).
+**Bản chạy thử công khai:** https://cdtn1-phoutthavongkhanxay-l8.onrender.com (Render, gói miễn phí – lần mở đầu có thể chờ ~1 phút; cách deploy: Deployment Guide §8). Chạy test bằng Docker: `docker compose --profile test run --rm test`.
 
 ## 1. Giới thiệu
 Sau khi phiếu bảo hành chuyển sang **ĐÃ ĐÓNG**, hệ thống tạo khảo sát; khách chấm điểm 1–5 kèm nhận xét.

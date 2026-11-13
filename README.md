@@ -19,7 +19,7 @@ Ban giám đốc quản lý tài khoản nội bộ.
 Tài liệu BT3: [`docs/test-plan.md`](docs/test-plan.md) · [`docs/test-report.md`](docs/test-report.md) (12 test case, ảnh trong `docs/screenshots/`) ·
 [`docs/bug-log.md`](docs/bug-log.md) (BUG-001 → BUG-011) · [`docs/deployment-guide.md`](docs/deployment-guide.md) · [`docs/checklist-bao-mat.md`](docs/checklist-bao-mat.md) ·
 [`docs/api-docs/`](docs/api-docs/README.md) (API docs tiếng Anh + `khao-sat.http`).
-Tài liệu thiết kế: `docs/srs.md` (SRS) · `docs/thay-doi-thiet-ke.md` (nhật ký thay đổi, TD-01 → TD-39) · `docs/architecture-thuc-te.png`
+Tài liệu thiết kế: `docs/srs.md` (SRS) · `docs/thay-doi-thiet-ke.md` (nhật ký thay đổi, TD-01 → TD-40) · `docs/architecture-thuc-te.png`
 (kiến trúc đã hiện thực) · `docs/erd-thuc-te.png` · `docs/anh-xa-kien-truc.md` · `docs/anh-man-hinh.md` · `docs/ket-qua-chay-mau.txt` · `docs/ai-disclosure.md`.
 
 ## 2. Yêu cầu môi trường
@@ -116,7 +116,8 @@ scripts/                      # chạy trọn luồng end-to-end; chạy lại 1
 tests/                        # 90 test (node:test); test-cases.test.js = 12 TC của Test Report
 docs/                         # SRS, sơ đồ, Test Plan/Report, Bug Log, Deployment Guide, checklist bảo mật, api-docs/, ảnh chụp
 Dockerfile, docker-compose.yml # ảnh chạy + giai đoạn test (profile test)
-.github/workflows/ci.yml      # CI
+.github/workflows/ci.yml      # CI/CD: test rồi deploy Render
+render.yaml                   # cấu hình Render (Blueprint) cho bản chạy thử
 ```
 Express phục vụ luôn `src/frontend/` cùng cổng với API nên giao diện gọi API bằng đường dẫn tương đối (`/api/...`), không cần CORS.
 

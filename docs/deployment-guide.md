@@ -140,6 +140,9 @@ The prototype runs on `http://localhost` only; no certificate is installed. For 
 
 ## 8. Public deployment on Render (optional – BT3 bonus)
 The same `Dockerfile` runs unchanged on Render's free plan. Live URL: **https://cdtn1-phoutthavongkhanxay-l8.onrender.com** (deployed 13/11/2026 from branch `main`).
+The whole Render configuration is also kept as code in **`render.yaml`** (Render Blueprint): to recreate the service in one step, use
+**Render → New → Blueprint** and pick this repository – Render reads the file, generates a fresh `AUTH_SECRET` itself and sets the other variables.
+The manual steps below give the same result.
 
 | # | Step (Render dashboard) | Value |
 |---|---|---|

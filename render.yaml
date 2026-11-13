@@ -1,0 +1,26 @@
+# Render Blueprint – cấu hình bản chạy thử công khai (Deployment Guide §8, TD-39, TD-40).
+# Ghi cấu hình Render thành mã trong repo: người khác dựng lại đúng dịch vụ bằng Render → New → Blueprint, chọn repo này.
+# Dịch vụ hiện tại (https://cdtn1-phoutthavongkhanxay-l8.onrender.com) trùng tên nên nếu đồng bộ Blueprint,
+# Render áp cấu hình này cho chính dịch vụ đó (không tạo dịch vụ mới). type và region không đổi được sau khi tạo.
+services:
+  - type: web
+    name: cdtn1-phoutthavongkhanxay-l8
+    runtime: docker                 # build từ Dockerfile của repo (giai đoạn cuối = ảnh chạy)
+    plan: free
+    region: singapore               # gần Việt Nam nhất
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health        # {"status":"ok","db":"up","commit":"<7 ký tự>"}
+    autoDeployTrigger: "off"        # KHÔNG tự deploy khi push; GitHub Actions deploy sau khi test PASS (ci.yml, job deploy)
+    envVars:
+      - key: AUTH_SECRET
+        generateValue: true         # Render tự sinh khóa ngẫu nhiên 256 bit (≥ 32 ký tự) – không nằm trong repo
+      - key: PORT
+        value: "3000"               # khớp EXPOSE 3000 và HEALTHCHECK trong Dockerfile
+      - key: TOKEN_TTL_HOURS
+        value: "1"
+      - key: APP_TIMEZONE
+        value: Asia/Ho_Chi_Minh
+      - key: DEMO_PASSWORD
+        value: Demo@2026            # mật khẩu 4 tài khoản demo trên dữ liệu MÔ PHỎNG, công khai để GV đăng nhập

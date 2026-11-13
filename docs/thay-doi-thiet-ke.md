@@ -282,3 +282,10 @@ Mỗi nhận xét có một quyết định ghi lại (kể cả khi không sử
   test → deploy và CI xác nhận được bản nào đang chạy. URL hook là bí mật, lưu ở GitHub Secrets, không in ra log.
 - Ảnh hưởng: `ci.yml`, `app.js` (`/health`), `config` (`appCommit`), `tests/health-startup.test.js`; Deployment Guide §8; README mục 4. Chạy
   local và Docker không đổi (`/health` vẫn là `{"status":"ok","db":"up"}`).
+
+### TD-40 Cấu hình Render lưu thành mã (`render.yaml`)
+- Phản hồi của GV: không có. Nguồn: nguyên tắc TÁI LẬP – cấu hình nền tảng chỉ nằm trên dashboard thì người khác không dựng lại được.
+- Quyết định: **THÊM** `render.yaml` (Render Blueprint): dịch vụ web Docker, gói free, Singapore, `healthCheckPath: /health`,
+  `autoDeployTrigger: "off"` (deploy do CI), biến môi trường; `AUTH_SECRET` dùng `generateValue` để Render tự sinh, không ghi vào repo.
+- Lý do: cùng tinh thần `docker-compose.yml` cho máy cục bộ – mọi cấu hình triển khai nằm trong repo, đọc và kiểm được, trừ bí mật.
+- Ảnh hưởng: chỉ thêm tệp; Deployment Guide §8. Dịch vụ đang chạy không đổi trừ khi đồng bộ Blueprint (trùng tên → áp lên chính dịch vụ đó).
